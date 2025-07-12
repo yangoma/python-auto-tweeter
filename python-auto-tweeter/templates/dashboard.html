@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - ダッシュボード</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            transition: all 0.3s;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 0.25rem;
+        }
+        .stat-card {
+            border-left: 4px solid #667eea;
+            transition: transform 0.2s;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+        .bot-status {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-active { background-color: #28a745; }
+        .status-inactive { background-color: #dc3545; }
+        .status-paused { background-color: #ffc107; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- サイドバー -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <div class="text-center mb-4">
+                        <h4 class="text-white">
+                            <i class="bi bi-robot"></i>
+                            Auto Tweeter
+                        </h4>
+                    </div>
+                    
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="/">
+                                <i class="bi bi-speedometer2"></i>
+                                ダッシュボード
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/bots">
+                                <i class="bi bi-robot"></i>
+                                ボット管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/twitter">
+                                <i class="bi bi-twitter"></i>
+                                Twitter連携
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/sheets">
+                                <i class="bi bi-table"></i>
+                                スプレッドシート連携
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/posts">
+                                <i class="bi bi-chat-square-text"></i>
+                                投稿履歴
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/analytics">
+                                <i class="bi bi-graph-up"></i>
+                                分析
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/settings">
+                                <i class="bi bi-gear"></i>
+                                設定
+                            </a>
+                        </li>
+                    </ul>
+                    
+                    <hr class="my-3 text-white-50">
+                    
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/docs" target="_blank">
+                                <i class="bi bi-book"></i>
+                                API ドキュメント
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- メインコンテンツ -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">
+                        <i class="bi bi-speedometer2"></i>
+                        ダッシュボード
+                    </h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <div class="btn-group me-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="refreshData()">
+                                <i class="bi bi-arrow-clockwise"></i>
+                                更新
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 統計カード -->
+                <div class="row mb-4">
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card stat-card h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                            アクティブボット
+                                        </div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="active-bots">0</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-robot text-primary" style="font-size: 2rem;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card stat-card h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                            今日の投稿
+                                        </div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="today-posts">0</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-chat-square-text text-success" style="font-size: 2rem;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card stat-card h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                            総投稿数
+                                        </div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="total-posts">0</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-graph-up text-info" style="font-size: 2rem;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card stat-card h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                            連携アカウント
+                                        </div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="linked-accounts">0</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-twitter text-warning" style="font-size: 2rem;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ボット一覧 -->
+                <div class="row">
+                    <div class="col-lg-8">
+                        <div class="card shadow mb-4">
+                            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                                <h6 class="m-0 font-weight-bold text-primary">
+                                    <i class="bi bi-robot"></i>
+                                    ボット一覧
+                                </h6>
+                                <a href="/bots/new" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-plus-circle"></i>
+                                    新規作成
+                                </a>
+                            </div>
+                            <div class="card-body">
+                                <div id="bots-list">
+                                    <div class="text-center py-4">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                        読み込み中...
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-4">
+                        <div class="card shadow mb-4">
+                            <div class="card-header py-3">
+                                <h6 class="m-0 font-weight-bold text-primary">
+                                    <i class="bi bi-activity"></i>
+                                    システム状態
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between">
+                                        <span>サーバー状態</span>
+                                        <span class="badge bg-success">正常</span>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between">
+                                        <span>最終更新</span>
+                                        <span id="last-update">-</span>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between">
+                                        <span>API呼び出し</span>
+                                        <span id="api-calls">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card shadow mb-4">
+                            <div class="card-header py-3">
+                                <h6 class="m-0 font-weight-bold text-primary">
+                                    <i class="bi bi-lightning"></i>
+                                    クイックアクション
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-grid gap-2">
+                                    <button class="btn btn-outline-primary" onclick="createBot()">
+                                        <i class="bi bi-plus-circle"></i>
+                                        新しいボット作成
+                                    </button>
+                                    <button class="btn btn-outline-success" onclick="connectTwitter()">
+                                        <i class="bi bi-twitter"></i>
+                                        Twitter連携
+                                    </button>
+                                    <button class="btn btn-outline-info" onclick="viewAnalytics()">
+                                        <i class="bi bi-graph-up"></i>
+                                        分析を見る
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // データ更新関数
+        async function refreshData() {
+            try {
+                // 統計データの取得
+                const statsResponse = await fetch('/api/stats');
+                if (statsResponse.ok) {
+                    const stats = await statsResponse.json();
+                    document.getElementById('active-bots').textContent = stats.active_bots || 0;
+                    document.getElementById('today-posts').textContent = stats.today_posts || 0;
+                    document.getElementById('total-posts').textContent = stats.total_posts || 0;
+                    document.getElementById('linked-accounts').textContent = stats.linked_accounts || 0;
+                }
+
+                // ボット一覧の取得
+                const botsResponse = await fetch('/api/bots');
+                if (botsResponse.ok) {
+                    const bots = await botsResponse.json();
+                    renderBotsList(bots);
+                }
+
+                // 最終更新時刻を設定
+                document.getElementById('last-update').textContent = new Date().toLocaleTimeString('ja-JP');
+            } catch (error) {
+                console.error('データの更新に失敗しました:', error);
+            }
+        }
+
+        // ボット一覧の描画
+        function renderBotsList(bots) {
+            const botsList = document.getElementById('bots-list');
+            
+            if (!bots || bots.length === 0) {
+                botsList.innerHTML = `
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-robot" style="font-size: 3rem;"></i>
+                        <p class="mt-2">ボットがまだ作成されていません</p>
+                        <a href="/bots/new" class="btn btn-primary">
+                            <i class="bi bi-plus-circle"></i>
+                            最初のボットを作成
+                        </a>
+                    </div>
+                `;
+                return;
+            }
+
+            const botsHtml = bots.map(bot => `
+                <div class="d-flex align-items-center justify-content-between py-3 border-bottom">
+                    <div class="d-flex align-items-center">
+                        <span class="bot-status status-${bot.status || 'inactive'}"></span>
+                        <div>
+                            <h6 class="mb-0">${bot.name || 'Unnamed Bot'}</h6>
+                            <small class="text-muted">${bot.description || 'No description'}</small>
+                        </div>
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-outline-primary me-1" onclick="editBot(${bot.id})">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-${bot.status === 'active' ? 'warning' : 'success'}" onclick="toggleBot(${bot.id})">
+                            <i class="bi bi-${bot.status === 'active' ? 'pause' : 'play'}"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            botsList.innerHTML = botsHtml;
+        }
+
+        // クイックアクション関数
+        function createBot() {
+            window.location.href = '/bots/new';
+        }
+
+        function connectTwitter() {
+            window.location.href = '/twitter';
+        }
+
+        function viewAnalytics() {
+            window.location.href = '/analytics';
+        }
+
+        function editBot(botId) {
+            window.location.href = `/bots/${botId}/edit`;
+        }
+
+        async function toggleBot(botId) {
+            try {
+                const response = await fetch(`/api/bots/${botId}/toggle`, {
+                    method: 'POST'
+                });
+                if (response.ok) {
+                    refreshData();
+                }
+            } catch (error) {
+                console.error('ボットの切り替えに失敗しました:', error);
+            }
+        }
+
+        // ページ読み込み時にデータを取得
+        document.addEventListener('DOMContentLoaded', refreshData);
+
+        // 30秒ごとに自動更新
+        setInterval(refreshData, 30000);
+    </script>
+</body>
+</html>

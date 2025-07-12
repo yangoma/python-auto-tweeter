@@ -1,0 +1,2597 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            transition: all 0.3s;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 0.25rem;
+        }
+        .status-connected { color: #28a745; }
+        .status-disconnected { color: #dc3545; }
+        .tab-content { min-height: 500px; }
+        .product-card {
+            transition: transform 0.2s;
+            cursor: pointer;
+            border: 1px solid #dee2e6;
+        }
+        .product-card:hover {
+            transform: translateY(-2px);
+            border-color: #667eea;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .product-card .card-title {
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        .product-card .card-text {
+            color: #495057;
+        }
+        .product-card .text-muted {
+            color: #6c757d !important;
+        }
+        .generation-progress {
+            display: none;
+        }
+        .alert-dismissible {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1070;
+            min-width: 300px;
+            max-width: 400px;
+        }
+        .sheet-selector {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 0.375rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .sheet-tab {
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            margin-right: 0.5rem;
+            border: 1px solid #dee2e6;
+            border-radius: 0.25rem;
+            background: #fff;
+            color: #495057;
+            transition: all 0.2s;
+        }
+        .sheet-tab:hover {
+            background: #e9ecef;
+            color: #212529;
+        }
+        .sheet-tab.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1rem;
+        }
+        .product-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 0.375rem;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+        }
+        .product-image-placeholder {
+            width: 100%;
+            height: 200px;
+            background: linear-gradient(45deg, #f8f9fa 25%, transparent 25%, transparent 75%, #f8f9fa 75%), 
+                        linear-gradient(45deg, #f8f9fa 25%, transparent 25%, transparent 75%, #f8f9fa 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 10px 10px;
+            border-radius: 0.375rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+            border: 1px solid #e9ecef;
+        }
+        .product-meta {
+            font-size: 0.75rem;
+            color: #6c757d;
+        }
+        .product-badges {
+            display: flex;
+            gap: 0.25rem;
+            margin-bottom: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .product-description {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- サイドバー -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <div class="text-center mb-4">
+                        <h4 class="text-white">
+                            <i class="bi bi-robot"></i>
+                            Auto Tweeter
+                        </h4>
+                    </div>
+                    
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/">
+                                <i class="bi bi-speedometer2"></i>
+                                ダッシュボード
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/bots">
+                                <i class="bi bi-robot"></i>
+                                ボット管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/twitter">
+                                <i class="bi bi-twitter"></i>
+                                Twitter連携
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="/sheets">
+                                <i class="bi bi-table"></i>
+                                スプレッドシート連携
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/posts">
+                                <i class="bi bi-chat-square-text"></i>
+                                投稿履歴
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/analytics">
+                                <i class="bi bi-graph-up"></i>
+                                分析
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- メインコンテンツ -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">
+                        <i class="bi bi-table"></i>
+                        スプレッドシート連携
+                    </h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <div class="btn-group me-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="checkConnection()">
+                                <i class="bi bi-arrow-clockwise"></i>
+                                接続確認
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 接続ステータス -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-google" style="font-size: 2rem; margin-right: 1rem;"></i>
+                                        <div>
+                                            <h5 class="mb-1">Google Sheets API</h5>
+                                            <p class="mb-0" id="connection-status">接続を確認中...</p>
+                                            <small class="text-muted" id="spreadsheet-info"></small>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <button class="btn btn-primary me-2" onclick="showConfigModal()" id="config-btn">
+                                            <i class="bi bi-gear"></i>
+                                            設定
+                                        </button>
+                                        <i class="bi bi-circle-fill" id="status-indicator" style="font-size: 1.5rem;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- タブナビゲーション -->
+                <ul class="nav nav-tabs" id="sheetsTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="schedule-tab" data-bs-toggle="tab" data-bs-target="#schedule" type="button" role="tab">
+                            <i class="bi bi-calendar-event"></i>
+                            投稿スケジュール
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="affiliate-tab" data-bs-toggle="tab" data-bs-target="#affiliate" type="button" role="tab">
+                            <i class="bi bi-cart"></i>
+                            アフィリ商品管理
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="generation-tab" data-bs-toggle="tab" data-bs-target="#generation" type="button" role="tab">
+                            <i class="bi bi-robot"></i>
+                            AI投稿生成
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- タブコンテンツ -->
+                <div class="tab-content" id="sheetsTabContent">
+                    <!-- 投稿スケジュールタブ -->
+                    <div class="tab-pane fade show active" id="schedule" role="tabpanel">
+                        <div class="card mt-3">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-calendar-event"></i>
+                                    予約投稿管理
+                                </h5>
+                                <div>
+                                    <button class="btn btn-success btn-sm me-2" onclick="syncFromSheets()">
+                                        <i class="bi bi-arrow-down"></i>
+                                        シートから同期
+                                    </button>
+                                    <button class="btn btn-primary btn-sm" onclick="syncToSheets()">
+                                        <i class="bi bi-arrow-up"></i>
+                                        シートへ同期
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div id="scheduled-posts-table">
+                                    <div class="text-center py-4">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                        読み込み中...
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- アフィリ商品管理タブ -->
+                    <div class="tab-pane fade" id="affiliate" role="tabpanel">
+                        <!-- シート選択セクション -->
+                        <div class="sheet-selector mt-3">
+                            <div class="row align-items-center">
+                                <div class="col-md-4">
+                                    <label class="form-label mb-2">
+                                        <i class="bi bi-table"></i>
+                                        <strong>読み込むシート名</strong>
+                                    </label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="sheet-name-input" 
+                                               value="アフィリ用データ" placeholder="シート名を入力">
+                                        <button class="btn btn-primary" onclick="loadProductsFromSheet()">
+                                            <i class="bi bi-download"></i>
+                                            読み込み
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label mb-2">
+                                        <strong>よく使うシート</strong>
+                                    </label>
+                                    <div class="d-flex flex-wrap" id="sheet-tabs">
+                                        <span class="sheet-tab active" onclick="selectSheet('アフィリ用データ')">アフィリ用データ</span>
+                                        <span class="sheet-tab" onclick="selectSheet('商品マスター')">商品マスター</span>
+                                        <span class="sheet-tab" onclick="selectSheet('新商品')">新商品</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label mb-2">
+                                        <strong>アクション</strong>
+                                    </label>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-outline-info btn-sm" onclick="createSampleSheets()">
+                                            <i class="bi bi-file-plus"></i>
+                                            サンプル作成
+                                        </button>
+                                        <button class="btn btn-outline-success btn-sm" onclick="addCustomSheet()">
+                                            <i class="bi bi-plus"></i>
+                                            シート追加
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-cart"></i>
+                                    商品一覧 <span class="badge bg-secondary" id="product-count">0</span>
+                                </h5>
+                                <div>
+                                    <span class="text-muted me-3" id="current-sheet-name">シート: アフィリ用データ</span>
+                                    <button class="btn btn-outline-primary btn-sm" onclick="refreshProducts()">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                        更新
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div id="affiliate-products">
+                                    <div class="text-center py-4">
+                                        <i class="bi bi-cart" style="font-size: 3rem; color: #6c757d;"></i>
+                                        <p class="mt-2 text-muted">シートを選択して商品を読み込んでください</p>
+                                        <button class="btn btn-primary" onclick="loadProductsFromSheet()">
+                                            <i class="bi bi-download"></i>
+                                            商品を読み込む
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI投稿生成タブ -->
+                    <div class="tab-pane fade" id="generation" role="tabpanel">
+                        <!-- 使用方法ガイド -->
+                        <div class="alert alert-info mt-3">
+                            <h6><i class="bi bi-info-circle"></i> AI投稿生成の使用方法</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <strong>📝 単体投稿生成:</strong>
+                                    <ol class="small mb-2">
+                                        <li>アフィリ商品管理タブで商品データを読み込み</li>
+                                        <li>生成設定でLLMプロバイダーとトーンを選択</li>
+                                        <li>商品を選択して「単体投稿生成」をクリック</li>
+                                        <li>生成された投稿内容を確認・編集</li>
+                                    </ol>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>🚀 一括投稿生成:</strong>
+                                    <ol class="small mb-2">
+                                        <li>商品データが読み込まれていることを確認</li>
+                                        <li>生成設定を調整</li>
+                                        <li>「一括投稿生成」で全商品の投稿を自動生成</li>
+                                        <li>24時間後から1時間間隔で予約投稿として登録</li>
+                                    </ol>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-0">
+                                            <i class="bi bi-gear"></i>
+                                            生成設定
+                                        </h5>
+                                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="openLLMConfigModal()">
+                                            <i class="bi bi-tools"></i>
+                                            LLM設定
+                                        </button>
+                                    </div>
+                                    <div class="card-body">
+                                        <form id="generation-form">
+                                            <div class="mb-3">
+                                                <label class="form-label">LLMプロバイダー</label>
+                                                <select class="form-select" id="provider">
+                                                    <option value="openai">OpenAI</option>
+                                                    <option value="ollama">Ollama (ローカル)</option>
+                                                    <option value="claude">Claude</option>
+                                                    <option value="gemini">Gemini</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">投稿タイプ</label>
+                                                <select class="form-select" id="post-type">
+                                                    <option value="promotional">プロモーション</option>
+                                                    <option value="informational">情報提供</option>
+                                                    <option value="engaging">エンゲージメント重視</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">ターゲット層</label>
+                                                <input type="text" class="form-control" id="target-audience" value="general" placeholder="例: 20代女性, ITエンジニア">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">トーン</label>
+                                                <select class="form-select" id="tone">
+                                                    <option value="friendly">フレンドリー</option>
+                                                    <option value="professional">プロフェッショナル</option>
+                                                    <option value="casual">カジュアル</option>
+                                                    <option value="exciting">エキサイティング</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="include-hashtags" checked>
+                                                    <label class="form-check-label" for="include-hashtags">
+                                                        ハッシュタグを含める
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">
+                                            <i class="bi bi-play-circle"></i>
+                                            生成実行
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">商品選択</label>
+                                            <select class="form-select" id="selected-product">
+                                                <option value="">商品を選択してください</option>
+                                            </select>
+                                        </div>
+                                        <div class="d-grid gap-2">
+                                            <button type="button" class="btn btn-primary" onclick="generateSinglePost()">
+                                                <i class="bi bi-magic"></i>
+                                                単体投稿生成
+                                            </button>
+                                            <button type="button" class="btn btn-success" onclick="generateBatchPosts()">
+                                                <i class="bi bi-collection"></i>
+                                                一括投稿生成
+                                            </button>
+                                            <button type="button" class="btn btn-outline-info" onclick="diagnoseGenerationSettings()">
+                                                <i class="bi bi-search"></i>
+                                                設定診断
+                                            </button>
+                                            <button type="button" class="btn btn-outline-warning" onclick="testOllamaConnection()">
+                                                <i class="bi bi-wifi"></i>
+                                                Ollama接続テスト
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary" onclick="showDebugLogs()">
+                                                <i class="bi bi-terminal"></i>
+                                                システム状況
+                                            </button>
+                                            <button type="button" class="btn btn-outline-primary" onclick="testGenerationProcess()">
+                                                <i class="bi bi-gear"></i>
+                                                生成テスト
+                                            </button>
+                                            <button type="button" class="btn btn-success" onclick="quickOllamaTest()">
+                                                <i class="bi bi-lightning"></i>
+                                                Ollama簡単テスト
+                                            </button>
+                                        </div>
+                                        <div class="mt-3">
+                                            <small class="text-muted">
+                                                <strong>使用方法:</strong><br>
+                                                • <strong>単体生成:</strong> 選択した商品から1つの投稿を生成<br>
+                                                • <strong>一括生成:</strong> 全商品から投稿を自動生成し、24時間後から順次予約投稿として登録
+                                            </small>
+                                        </div>
+                                        <div class="generation-progress mt-3">
+                                            <div class="progress">
+                                                <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                            </div>
+                                            <small class="text-muted">生成中...</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="card mt-3" id="generation-result" style="display: none;">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">
+                                            <i class="bi bi-check-circle"></i>
+                                            生成結果
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="generated-content"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- アラート表示エリア -->
+    <div id="alert-container"></div>
+
+    <!-- 画像ギャラリーモーダル -->
+    <div class="modal fade" id="imageGalleryModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-images"></i>
+                        商品画像ギャラリー
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="gallery-content">
+                        <div class="text-center py-4">
+                            <i class="bi bi-arrow-clockwise"></i>
+                            読み込み中...
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Google Sheets設定モーダル -->
+    <div class="modal fade" id="configModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-google"></i>
+                        Google Sheets 設定
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="bi bi-key"></i>
+                                        認証設定
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Google Service Account認証ファイル</label>
+                                        <input type="file" class="form-control" id="credentials-file" accept=".json">
+                                        <div class="form-text">
+                                            Google Cloud ConsoleでService Accountキーをダウンロードしてください
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-primary" onclick="uploadCredentials()">
+                                        <i class="bi bi-upload"></i>
+                                        認証ファイルをアップロード
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="bi bi-table"></i>
+                                        スプレッドシート設定
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">スプレッドシートID</label>
+                                        <input type="text" class="form-control" id="spreadsheet-id" 
+                                               placeholder="スプレッドシートのURLからIDを取得">
+                                        <div class="form-text">
+                                            例: https://docs.google.com/spreadsheets/d/<strong>SPREADSHEET_ID</strong>/edit
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-success" onclick="saveConfig()">
+                                        <i class="bi bi-check"></i>
+                                        設定を保存
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="bi bi-info-circle"></i>
+                                        セットアップ手順
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <ol>
+                                        <li>Google Cloud Consoleでプロジェクトを作成</li>
+                                        <li>Google Sheets APIを有効化</li>
+                                        <li>Service Accountを作成してキーをダウンロード</li>
+                                        <li>スプレッドシートをService Accountと共有</li>
+                                        <li>上記の認証ファイルとスプレッドシートIDを設定</li>
+                                    </ol>
+                                    <div class="alert alert-info">
+                                        <strong>ヒント:</strong> スプレッドシートには「投稿スケジュール」と「アフィリ用データ」シートを作成してください。
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+                    <button type="button" class="btn btn-primary" onclick="testConnection()">
+                        <i class="bi bi-wifi"></i>
+                        接続テスト
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LLM設定モーダル -->
+    <div class="modal fade" id="llmConfigModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-robot"></i>
+                        LLM設定
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row" id="llm-providers-container">
+                        <!-- プロバイダー設定カードがここに動的に生成される -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+                    <button type="button" class="btn btn-success" onclick="testAllConnections()">
+                        <i class="bi bi-wifi"></i>
+                        全接続テスト
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- モデル管理モーダル -->
+    <div class="modal fade" id="modelManagerModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-gear"></i>
+                        <span id="model-manager-provider"></span> モデル管理
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="bi bi-plus-circle"></i>
+                                        カスタムモデル追加
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">モデル名</label>
+                                        <input type="text" class="form-control" id="new-model-name" 
+                                               placeholder="例: gemma3:27b">
+                                        <div class="form-text">
+                                            Ollamaのモデル名やカスタムモデル名を入力
+                                        </div>
+                                    </div>
+                                    <div class="d-grid gap-2">
+                                        <button type="button" class="btn btn-primary" onclick="addCustomModel()">
+                                            <i class="bi bi-plus"></i>
+                                            追加
+                                        </button>
+                                        <button type="button" class="btn btn-outline-success" 
+                                                onclick="loadOllamaModels()" 
+                                                id="load-ollama-models-btn" 
+                                                style="display: none;">
+                                            <i class="bi bi-download"></i>
+                                            Ollamaモデルを読み込み
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="bi bi-list"></i>
+                                        モデル一覧
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="models-list">
+                                        <div class="text-center py-3">
+                                            <i class="bi bi-arrow-clockwise"></i>
+                                            読み込み中...
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3" id="ollama-installed-models" style="display: none;">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="bi bi-hdd"></i>
+                                        Ollamaインストール済みモデル
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="installed-models-list">
+                                        <!-- インストール済みモデル一覧がここに表示される -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let isConnected = false;
+        let affiliateProducts = [];
+        let currentSheetName = 'アフィリ用データ';
+        let customSheets = ['アフィリ用データ', '商品マスター', '新商品']; // デフォルトシート
+
+        // ページ読み込み時の初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadConfig();
+            checkConnection();
+            loadScheduledPosts();
+            loadLLMProviders();
+            loadCustomSheets();
+        });
+
+        // 設定を読み込み
+        async function loadConfig() {
+            try {
+                const response = await fetch('/api/sheets/config');
+                const config = await response.json();
+                
+                console.log('読み込まれた設定:', config);
+                
+                // 設定フォームに値をセット
+                document.getElementById('spreadsheet-id').value = config.spreadsheet_id || '';
+                
+                // スプレッドシート情報の表示更新
+                const infoEl = document.getElementById('spreadsheet-info');
+                if (config.spreadsheet_id) {
+                    infoEl.textContent = `スプレッドシートID: ${config.spreadsheet_id.substring(0, 20)}...`;
+                    // 設定が保存されている場合は成功メッセージを表示
+                    if (config.saved_config && config.saved_config.spreadsheet_id) {
+                        showAlert('success', '保存された設定を読み込みました', 3000);
+                    }
+                } else {
+                    infoEl.textContent = 'スプレッドシートが設定されていません';
+                }
+                
+                // 認証状態の表示更新
+                if (config.credentials_configured) {
+                    showAlert('info', 'Google Sheets API認証済み', 2000);
+                }
+                
+            } catch (error) {
+                console.error('設定読み込みエラー:', error);
+                showAlert('warning', '設定の読み込みに失敗しました');
+            }
+        }
+
+        // 設定モーダルを表示
+        function showConfigModal() {
+            const modal = new bootstrap.Modal(document.getElementById('configModal'));
+            modal.show();
+        }
+
+        // 認証ファイルをアップロード
+        async function uploadCredentials() {
+            const fileInput = document.getElementById('credentials-file');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showAlert('warning', '認証ファイルを選択してください');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/api/sheets/upload-credentials', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'アップロードに失敗しました');
+                }
+
+                const result = await response.json();
+                showAlert('success', result.message);
+                
+                // 接続状況を再確認
+                checkConnection();
+            } catch (error) {
+                console.error('認証ファイルアップロードエラー:', error);
+                showAlert('danger', `アップロードエラー: ${error.message}`);
+            }
+        }
+
+        // 設定を保存
+        async function saveConfig() {
+            const spreadsheetId = document.getElementById('spreadsheet-id').value.trim();
+            
+            if (!spreadsheetId) {
+                showAlert('warning', 'スプレッドシートIDを入力してください');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/sheets/configure', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        spreadsheet_id: spreadsheetId
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || '設定の保存に失敗しました');
+                }
+
+                const result = await response.json();
+                showAlert('success', result.message);
+                
+                // 設定を再読み込み
+                loadConfig();
+                checkConnection();
+                
+                // モーダルを閉じる
+                const modal = bootstrap.Modal.getInstance(document.getElementById('configModal'));
+                modal.hide();
+            } catch (error) {
+                console.error('設定保存エラー:', error);
+                showAlert('danger', `設定エラー: ${error.message}`);
+            }
+        }
+
+        // 接続確認
+        async function checkConnection() {
+            try {
+                const response = await fetch('/api/sheets/test-connection');
+                const data = await response.json();
+                
+                console.log('接続テスト結果:', data); // デバッグ用
+                
+                const statusEl = document.getElementById('connection-status');
+                const indicatorEl = document.getElementById('status-indicator');
+                
+                if (data.connected) {
+                    statusEl.textContent = 'Google Sheets APIに接続済み';
+                    statusEl.className = 'mb-0 status-connected';
+                    indicatorEl.className = 'bi bi-circle-fill status-connected';
+                    isConnected = true;
+                } else {
+                    statusEl.textContent = data.message || 'Google Sheets APIに接続できません';
+                    statusEl.className = 'mb-0 status-disconnected';
+                    indicatorEl.className = 'bi bi-circle-fill status-disconnected';
+                    isConnected = false;
+                }
+            } catch (error) {
+                console.error('接続確認エラー:', error);
+                const statusEl = document.getElementById('connection-status');
+                const indicatorEl = document.getElementById('status-indicator');
+                statusEl.textContent = 'エラー: 接続確認に失敗しました';
+                statusEl.className = 'mb-0 status-disconnected';
+                indicatorEl.className = 'bi bi-circle-fill status-disconnected';
+                isConnected = false;
+                showAlert('danger', '接続確認に失敗しました');
+            }
+        }
+
+        // 予約投稿一覧の読み込み
+        async function loadScheduledPosts() {
+            try {
+                console.log('予約投稿を読み込み中...'); // デバッグ用
+                const response = await fetch('/api/sheets/scheduled-posts');
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error('予約投稿読み込みエラー (サーバー):', errorData);
+                    throw new Error(errorData.detail || 'Failed to load scheduled posts');
+                }
+                
+                const data = await response.json();
+                console.log('予約投稿データ:', data); // デバッグ用
+                renderScheduledPosts(data.posts || []);
+            } catch (error) {
+                console.error('予約投稿読み込みエラー:', error);
+                document.getElementById('scheduled-posts-table').innerHTML = 
+                    `<div class="alert alert-warning">予約投稿の読み込みに失敗しました: ${error.message}</div>`;
+            }
+        }
+
+        // 予約投稿テーブルの描画
+        function renderScheduledPosts(posts) {
+            const container = document.getElementById('scheduled-posts-table');
+            
+            if (!posts || posts.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="bi bi-calendar-x" style="font-size: 3rem; color: #6c757d;"></i>
+                        <p class="mt-2 text-muted">予約投稿がありません</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const tableHtml = `
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>投稿内容</th>
+                                <th>投稿日時</th>
+                                <th>ボット</th>
+                                <th>ステータス</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${posts.map(post => `
+                                <tr>
+                                    <td>
+                                        <div style="max-width: 300px; overflow: hidden; text-overflow: ellipsis;">
+                                            ${post.content}
+                                        </div>
+                                    </td>
+                                    <td>${new Date(post.scheduled_time).toLocaleString('ja-JP')}</td>
+                                    <td>${post.bot_name || 'Unknown'}</td>
+                                    <td>
+                                        <span class="badge bg-${getStatusColor(post.status)}">${getStatusText(post.status)}</span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="editScheduledPost('${post.id}')">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteScheduledPost('${post.id}')">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            container.innerHTML = tableHtml;
+        }
+
+        // シート選択
+        function selectSheet(sheetName) {
+            currentSheetName = sheetName;
+            document.getElementById('sheet-name-input').value = sheetName;
+            document.getElementById('current-sheet-name').textContent = `シート: ${sheetName}`;
+            
+            // アクティブタブの更新
+            document.querySelectorAll('.sheet-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // 商品を自動読み込み
+            loadProductsFromSheet();
+        }
+
+        // シートから商品を読み込み
+        async function loadProductsFromSheet() {
+            if (!isConnected) {
+                showAlert('warning', 'Google Sheets APIに接続してください');
+                return;
+            }
+
+            const sheetName = document.getElementById('sheet-name-input').value.trim();
+            if (!sheetName) {
+                showAlert('warning', 'シート名を入力してください');
+                return;
+            }
+
+            try {
+                console.log(`シート "${sheetName}" から商品を読み込み中...`);
+                
+                // カスタムエンドポイントでシート名を指定して取得
+                const response = await fetch(`/api/llm/affiliate-products?sheet_name=${encodeURIComponent(sheetName)}`);
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error('商品読み込みエラー (サーバー):', errorData);
+                    throw new Error(errorData.detail || 'Failed to load affiliate products');
+                }
+                
+                const data = await response.json();
+                console.log(`シート "${sheetName}" の商品データ:`, data);
+                
+                currentSheetName = sheetName;
+                affiliateProducts = data.products || [];
+                renderAffiliateProducts(affiliateProducts);
+                updateProductSelect();
+                
+                showAlert('success', `シート "${sheetName}" から ${affiliateProducts.length} 件の商品を読み込みました`);
+            } catch (error) {
+                console.error('商品読み込みエラー:', error);
+                showAlert('danger', `商品の読み込みに失敗しました: ${error.message}`);
+            }
+        }
+
+        // 商品リストを更新（現在のシートで再読み込み）
+        function refreshProducts() {
+            loadProductsFromSheet();
+        }
+
+        // カスタムシートを追加
+        function addCustomSheet() {
+            const sheetName = prompt('追加するシート名を入力してください:');
+            if (sheetName && !customSheets.includes(sheetName)) {
+                customSheets.push(sheetName);
+                updateSheetTabs();
+                saveCustomSheets();
+                showAlert('success', `シート "${sheetName}" を追加しました`);
+            } else if (customSheets.includes(sheetName)) {
+                showAlert('warning', 'そのシート名は既に存在します');
+            }
+        }
+
+        // シートタブを更新
+        function updateSheetTabs() {
+            const tabsContainer = document.getElementById('sheet-tabs');
+            tabsContainer.innerHTML = customSheets.map(sheet => 
+                `<span class="sheet-tab ${sheet === currentSheetName ? 'active' : ''}" 
+                       onclick="selectSheet('${sheet}')">${sheet}</span>`
+            ).join('');
+        }
+
+        // カスタムシートを保存（localStorage使用）
+        function saveCustomSheets() {
+            localStorage.setItem('customSheets', JSON.stringify(customSheets));
+        }
+
+        // カスタムシートを読み込み
+        function loadCustomSheets() {
+            const saved = localStorage.getItem('customSheets');
+            if (saved) {
+                customSheets = JSON.parse(saved);
+                updateSheetTabs();
+            }
+        }
+
+        // 商品選択（AI生成用）
+        function selectProductForGeneration(productId) {
+            const selectEl = document.getElementById('selected-product');
+            selectEl.value = productId;
+            
+            // AI生成タブに移動
+            const generationTab = document.querySelector('#generation-tab');
+            generationTab.click();
+            
+            showAlert('info', '商品を選択しました。AI投稿生成タブで生成設定を確認してください。');
+        }
+
+        // アフィリ商品の読み込み（後方互換性のため残す）
+        async function loadAffiliateProducts() {
+            loadProductsFromSheet();
+        }
+
+        // アフィリ商品の描画（新フォーマット対応）
+        function renderAffiliateProducts(products) {
+            const container = document.getElementById('affiliate-products');
+            const countEl = document.getElementById('product-count');
+            
+            if (!products || products.length === 0) {
+                countEl.textContent = '0';
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="bi bi-cart-x" style="font-size: 3rem; color: #6c757d;"></i>
+                        <p class="mt-2 text-muted">選択したシートに商品データが見つかりません</p>
+                        <div class="alert alert-info">
+                            <small>
+                                <strong>期待されるヘッダー:</strong><br>
+                                Content ID, Product ID, Title, URL, Affiliate URL, Date, Description, Created At, Sample Image URL 1-20
+                            </small>
+                        </div>
+                        <button class="btn btn-outline-primary" onclick="loadProductsFromSheet()">
+                            <i class="bi bi-arrow-clockwise"></i>
+                            再読み込み
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            countEl.textContent = products.length;
+
+            const productsHtml = products.map(product => {
+                // 画像表示の処理
+                const firstImage = product.sample_images && product.sample_images.length > 0 ? product.sample_images[0] : null;
+                const imageHtml = firstImage ? 
+                    `<img src="${firstImage}" class="product-image" alt="${product.title}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                     <div class="product-image-placeholder" style="display:none;">
+                         <i class="bi bi-image" style="font-size: 2rem;"></i>
+                     </div>` :
+                    `<div class="product-image-placeholder">
+                         <i class="bi bi-image" style="font-size: 2rem;"></i>
+                     </div>`;
+
+                // 日付のフォーマット
+                const formattedDate = product.date ? new Date(product.date).toLocaleDateString('ja-JP') : '';
+                
+                return `
+                    <div class="card product-card h-100" onclick="selectProductForGeneration('${product.id}')">
+                        <div class="position-relative">
+                            ${imageHtml}
+                            <div class="product-badges position-absolute" style="top: 0.5rem; left: 0.5rem;">
+                                ${product.sample_images_count > 0 ? 
+                                    `<span class="badge bg-primary">${product.sample_images_count} 画像</span>` : 
+                                    '<span class="badge bg-secondary">画像なし</span>'
+                                }
+                                ${product.affiliate_url ? '<span class="badge bg-success">アフィリ</span>' : ''}
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <h6 class="card-title">${product.title || 'タイトルなし'}</h6>
+                            <div class="product-meta mb-2">
+                                <div class="d-flex justify-content-between">
+                                    <span><i class="bi bi-hash"></i> ${product.product_id || product.content_id}</span>
+                                    ${formattedDate ? `<span><i class="bi bi-calendar"></i> ${formattedDate}</span>` : ''}
+                                </div>
+                            </div>
+                            <p class="card-text product-description small">${product.description || ''}</p>
+                        </div>
+                        <div class="card-footer bg-transparent">
+                            <div class="d-grid gap-1">
+                                <button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); generateFromProduct('${product.id}')">
+                                    <i class="bi bi-magic"></i>
+                                    投稿生成
+                                </button>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    ${product.url ? 
+                                        `<a href="${product.url}" target="_blank" class="btn btn-outline-secondary" onclick="event.stopPropagation()">
+                                            <i class="bi bi-box-arrow-up-right"></i> 詳細
+                                        </a>` : ''
+                                    }
+                                    ${product.affiliate_url ? 
+                                        `<a href="${product.affiliate_url}" target="_blank" class="btn btn-outline-success" onclick="event.stopPropagation()">
+                                            <i class="bi bi-link-45deg"></i> アフィリ
+                                        </a>` : ''
+                                    }
+                                    ${product.sample_images_count > 1 ? 
+                                        `<button class="btn btn-outline-info" onclick="event.stopPropagation(); showImageGallery('${product.id}')">
+                                            <i class="bi bi-images"></i> ギャラリー
+                                        </button>` : ''
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = `<div class="product-grid">${productsHtml}</div>`;
+        }
+
+        // LLMプロバイダーの読み込み
+        async function loadLLMProviders() {
+            try {
+                const response = await fetch('/api/llm/providers');
+                if (!response.ok) throw new Error('Failed to load providers');
+                
+                const data = await response.json();
+                const providerSelect = document.getElementById('provider');
+                providerSelect.innerHTML = '';
+                
+                data.providers.forEach(provider => {
+                    const option = document.createElement('option');
+                    option.value = provider.name;
+                    option.textContent = `${provider.display_name} ${provider.available ? '' : '(利用不可)'}`;
+                    option.disabled = !provider.available;
+                    providerSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('プロバイダー読み込みエラー:', error);
+            }
+        }
+
+        // 商品選択プルダウンの更新
+        function updateProductSelect() {
+            const select = document.getElementById('selected-product');
+            select.innerHTML = '<option value="">商品を選択してください</option>';
+            
+            affiliateProducts.forEach(product => {
+                const option = document.createElement('option');
+                option.value = product.id;
+                option.textContent = product.name || 'Unnamed Product';
+                select.appendChild(option);
+            });
+        }
+
+        // スプレッドシートからの同期
+        async function syncFromSheets() {
+            if (!isConnected) {
+                showAlert('warning', 'Google Sheets APIに接続してください');
+                return;
+            }
+
+            try {
+                showAlert('info', 'スプレッドシートから同期中...', 3000);
+                const response = await fetch('/api/sheets/sync-from-sheets', {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) throw new Error('Sync failed');
+                
+                const data = await response.json();
+                showAlert('success', `${data.synced_count}件の投稿を同期しました`);
+                loadScheduledPosts();
+            } catch (error) {
+                console.error('同期エラー:', error);
+                showAlert('danger', '同期に失敗しました');
+            }
+        }
+
+        // スプレッドシートへの同期
+        async function syncToSheets() {
+            if (!isConnected) {
+                showAlert('warning', 'Google Sheets APIに接続してください');
+                return;
+            }
+
+            try {
+                showAlert('info', 'スプレッドシートへ同期中...', 3000);
+                const response = await fetch('/api/sheets/sync-to-sheets', {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) throw new Error('Sync failed');
+                
+                const data = await response.json();
+                showAlert('success', `${data.synced_count}件をスプレッドシートに同期しました`);
+            } catch (error) {
+                console.error('同期エラー:', error);
+                showAlert('danger', '同期に失敗しました');
+            }
+        }
+
+        // 単体投稿生成
+        async function generateSinglePost() {
+            const productId = document.getElementById('selected-product').value;
+            if (!productId) {
+                showAlert('warning', '商品を選択してください');
+                return;
+            }
+
+            const settings = getGenerationSettings();
+            console.log('=== AI投稿生成デバッグ情報 ===');
+            console.log('選択された商品ID:', productId);
+            console.log('生成設定:', settings);
+            console.log('アフィリ商品データ数:', affiliateProducts.length);
+            console.log('選択された商品データ:', affiliateProducts.find(p => p.id === productId));
+            console.log('Google Sheets接続状態:', isConnected);
+            
+            // 事前チェック
+            if (!isConnected) {
+                showAlert('warning', 'Google Sheets APIに接続してください');
+                return;
+            }
+            
+            if (affiliateProducts.length === 0) {
+                showAlert('warning', '商品データを読み込んでください');
+                return;
+            }
+            
+            if (!settings.provider) {
+                showAlert('warning', 'LLMプロバイダーを選択してください');
+                return;
+            }
+            
+            // LLM設定の詳細チェック
+            try {
+                const llmConfigResponse = await fetch('/api/llm/config');
+                const llmConfig = await llmConfigResponse.json();
+                console.log('LLM設定状態:', llmConfig);
+                
+                const selectedProvider = llmConfig.available_providers.find(p => p.name === settings.provider);
+                console.log('選択されたプロバイダー情報:', selectedProvider);
+                
+                if (!selectedProvider || !selectedProvider.available) {
+                    showAlert('warning', `${settings.provider} の設定が不完全です。LLM設定でAPIキーを設定してください。`);
+                    return;
+                }
+            } catch (configError) {
+                console.error('LLM設定チェックエラー:', configError);
+                showAlert('warning', 'LLM設定の確認に失敗しました。LLM設定を確認してください。');
+                return;
+            }
+            
+            try {
+                showGenerationProgress(true);
+                showAlert('info', 'AI投稿を生成中...', 3000);
+                
+                // ステップ1: API呼び出し開始
+                console.log('🚀 API呼び出し開始:', `/api/llm/generate-from-affiliate-data/${productId}`);
+                console.log('📤 送信データ:', JSON.stringify(settings, null, 2));
+                
+                const response = await fetch(`/api/llm/generate-from-affiliate-data/${productId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(settings)
+                });
+                
+                // ステップ2: レスポンス確認
+                console.log('📡 API レスポンス状態:', response.status);
+                console.log('📋 レスポンスヘッダー:', Object.fromEntries(response.headers.entries()));
+                
+                if (!response.ok) {
+                    console.error('❌ APIエラー発生');
+                    const errorData = await response.json();
+                    console.error('📄 エラー詳細:', errorData);
+                    throw new Error(errorData.detail || `HTTP ${response.status}: Generation failed`);
+                }
+                
+                // ステップ3: データ解析
+                const data = await response.json();
+                console.log('✅ API成功 - 生成結果:', data);
+                console.log('📊 生成データ構造:', {
+                    success: data.success,
+                    hasContent: !!data.content,
+                    contentLength: data.content ? data.content.length : 0,
+                    hasSourceData: !!data.source_data,
+                    provider: data.provider,
+                    model: data.model
+                });
+                
+                if (data.success) {
+                    showGenerationResult(data.content, data.source_data);
+                    showAlert('success', '投稿を生成しました');
+                } else {
+                    throw new Error(data.error || 'Generation failed');
+                }
+            } catch (error) {
+                console.error('生成エラー詳細:', error);
+                console.error('エラーの型:', typeof error);
+                console.error('エラーのプロパティ:', Object.keys(error));
+                
+                let errorMessage = '投稿生成に失敗しました';
+                let errorDetail = '';
+                
+                // エラーオブジェクトの詳細な解析
+                if (error && typeof error === 'object') {
+                    if (error.message) {
+                        errorDetail = error.message;
+                    } else if (error.detail) {
+                        errorDetail = error.detail;
+                    } else if (error.error) {
+                        errorDetail = error.error;
+                    } else {
+                        // オブジェクトを文字列化
+                        try {
+                            errorDetail = JSON.stringify(error, null, 2);
+                        } catch (e) {
+                            errorDetail = String(error);
+                        }
+                    }
+                } else {
+                    errorDetail = String(error);
+                }
+                
+                console.log('解析されたエラー詳細:', errorDetail);
+                
+                // エラーの種類に応じたメッセージ
+                if (errorDetail.includes('商品ID') || errorDetail.includes('見つかりません')) {
+                    errorMessage += '\n商品データが見つかりません。商品を再読み込みしてください。';
+                } else if (errorDetail.includes('認証')) {
+                    errorMessage += '\nGoogle Sheets API認証が必要です。';
+                } else if (errorDetail.includes('API key') || errorDetail.includes('設定されていません')) {
+                    errorMessage += '\nLLM API設定が不完全です。LLM設定でAPIキーを確認してください。';
+                } else if (errorDetail.includes('Connection') || errorDetail.includes('接続')) {
+                    errorMessage += '\nLLMサーバーに接続できません。接続テストを実行してください。';
+                } else {
+                    errorMessage += `\n詳細: ${errorDetail}`;
+                }
+                
+                showAlert('danger', errorMessage);
+            } finally {
+                showGenerationProgress(false);
+            }
+        }
+
+        // 一括投稿生成
+        async function generateBatchPosts() {
+            if (affiliateProducts.length === 0) {
+                showAlert('warning', '商品データを読み込んでください');
+                return;
+            }
+
+            const settings = getGenerationSettings();
+            const productIds = affiliateProducts.map(p => p.id);
+            
+            try {
+                showGenerationProgress(true);
+                const response = await fetch('/api/llm/generate-batch-posts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        product_ids: productIds,
+                        generation_settings: settings
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Batch generation failed');
+                
+                const data = await response.json();
+                showAlert('success', data.message);
+            } catch (error) {
+                console.error('一括生成エラー:', error);
+                showAlert('danger', '一括生成に失敗しました');
+            } finally {
+                showGenerationProgress(false);
+            }
+        }
+
+        // 生成設定の取得
+        function getGenerationSettings() {
+            return {
+                provider: document.getElementById('provider').value,
+                post_type: document.getElementById('post-type').value,
+                target_audience: document.getElementById('target-audience').value,
+                tone: document.getElementById('tone').value,
+                include_hashtags: document.getElementById('include-hashtags').checked,
+                max_length: 280
+            };
+        }
+
+        // 生成進行状況の表示
+        function showGenerationProgress(show) {
+            const progressEl = document.querySelector('.generation-progress');
+            progressEl.style.display = show ? 'block' : 'none';
+        }
+
+        // 生成結果の表示
+        function showGenerationResult(content, sourceData) {
+            const resultEl = document.getElementById('generation-result');
+            const contentEl = document.getElementById('generated-content');
+            
+            // コンテンツをエスケープして安全にHTMLに挿入
+            const escapedContent = content.replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
+            
+            contentEl.innerHTML = `
+                <div class="mb-3">
+                    <label class="form-label">生成された投稿内容:</label>
+                    <textarea class="form-control" rows="4" readonly id="generated-textarea"></textarea>
+                </div>
+                ${sourceData ? `
+                <div class="mb-3">
+                    <small class="text-muted">
+                        商品: ${sourceData.product_name} (ID: ${sourceData.product_id})
+                    </small>
+                </div>
+                ` : ''}
+                <div class="d-grid gap-2">
+                    <button class="btn btn-primary" onclick="useGeneratedContent(\`${escapedContent}\`)">
+                        <i class="bi bi-check"></i>
+                        この内容を使用
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="copyToClipboard(\`${escapedContent}\`)">
+                        <i class="bi bi-copy"></i>
+                        クリップボードにコピー
+                    </button>
+                </div>
+            `;
+            
+            // テキストエリアに内容をセット
+            const textarea = document.getElementById('generated-textarea');
+            if (textarea) {
+                textarea.value = content;
+            }
+            
+            resultEl.style.display = 'block';
+        }
+
+        // クリップボードにコピー
+        function copyToClipboard(content) {
+            const decodedContent = content.replace(/&#x27;/g, "'").replace(/&quot;/g, '"');
+            navigator.clipboard.writeText(decodedContent).then(() => {
+                showAlert('success', 'クリップボードにコピーしました');
+            }).catch(() => {
+                showAlert('warning', 'コピーに失敗しました');
+            });
+        }
+
+        // 生成されたコンテンツを使用
+        function useGeneratedContent(content) {
+            // エスケープされた内容をデコード
+            const decodedContent = content.replace(/&#x27;/g, "'").replace(/&quot;/g, '"');
+            
+            // 投稿管理タブに移動して内容をセット
+            const scheduleTab = document.querySelector('#schedule-tab');
+            if (scheduleTab) {
+                scheduleTab.click();
+                
+                // 少し待ってからフィールドに内容をセット
+                setTimeout(() => {
+                    const contentField = document.getElementById('post-content');
+                    if (contentField) {
+                        contentField.value = decodedContent;
+                        showAlert('success', '生成された内容を投稿フォームにセットしました');
+                    } else {
+                        // クリップボードにコピー
+                        navigator.clipboard.writeText(decodedContent).then(() => {
+                            showAlert('success', '生成された内容をクリップボードにコピーしました');
+                        }).catch(() => {
+                            showAlert('info', '生成された内容:\n' + decodedContent);
+                        });
+                    }
+                }, 100);
+            } else {
+                // 投稿管理タブがない場合はクリップボードにコピー
+                navigator.clipboard.writeText(decodedContent).then(() => {
+                    showAlert('success', '生成された内容をクリップボードにコピーしました');
+                }).catch(() => {
+                    showAlert('info', '生成された内容:\n' + decodedContent);
+                });
+            }
+        }
+
+        // ユーティリティ関数
+        function getStatusColor(status) {
+            const colors = {
+                'pending': 'warning',
+                'processing': 'info',
+                'posted': 'success',
+                'failed': 'danger'
+            };
+            return colors[status] || 'secondary';
+        }
+
+        function getStatusText(status) {
+            const texts = {
+                'pending': '待機中',
+                'processing': '処理中',
+                'posted': '投稿済み',
+                'failed': '失敗'
+            };
+            return texts[status] || status;
+        }
+
+        // アラート表示
+        function showAlert(type, message, duration = 5000) {
+            const alertContainer = document.getElementById('alert-container');
+            const alertId = 'alert-' + Date.now();
+            
+            // 複数行のメッセージを改行で処理
+            const formattedMessage = message.replace(/\n/g, '<br>');
+            
+            const alertHtml = `
+                <div class="alert alert-${type} alert-dismissible fade show" id="${alertId}" style="white-space: pre-line; line-height: 1.4;">
+                    <div style="display: flex; align-items: flex-start; gap: 8px;">
+                        <div style="flex: 1;">
+                            ${formattedMessage}
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" style="margin-left: auto; flex-shrink: 0;"></button>
+                    </div>
+                </div>
+            `;
+            
+            // 既存のアラートをクリア
+            alertContainer.innerHTML = '';
+            alertContainer.innerHTML = alertHtml;
+            
+            if (duration > 0) {
+                setTimeout(() => {
+                    const alert = document.getElementById(alertId);
+                    if (alert) {
+                        const bsAlert = new bootstrap.Alert(alert);
+                        bsAlert.close();
+                    }
+                }, duration);
+            }
+        }
+
+        // サンプルシート作成
+        async function createSampleSheets() {
+            if (!isConnected) {
+                showAlert('warning', 'Google Sheets APIに接続してください');
+                return;
+            }
+
+            try {
+                showAlert('info', 'サンプルシートを作成中...', 3000);
+                const response = await fetch('/api/sheets/create-sample-sheet', {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) throw new Error('Sample creation failed');
+                
+                const data = await response.json();
+                showAlert('success', 'サンプルシートを作成しました！商品データを読み込んでください。');
+            } catch (error) {
+                console.error('サンプル作成エラー:', error);
+                showAlert('danger', 'サンプル作成に失敗しました');
+            }
+        }
+
+        // 画像ギャラリーを表示
+        function showImageGallery(productId) {
+            const product = affiliateProducts.find(p => p.id === productId);
+            if (!product || !product.sample_images || product.sample_images.length === 0) {
+                showAlert('warning', '表示できる画像がありません');
+                return;
+            }
+
+            const galleryContent = document.getElementById('gallery-content');
+            const imagesHtml = product.sample_images.map((imageUrl, index) => `
+                <div class="col-md-4 mb-3">
+                    <div class="card">
+                        <img src="${imageUrl}" class="card-img-top" alt="商品画像 ${index + 1}" 
+                             style="height: 200px; object-fit: cover; cursor: pointer;"
+                             onclick="openImageInNewTab('${imageUrl}')"
+                             onerror="this.parentElement.innerHTML='<div class=\\'text-center p-3 text-muted\\'>画像を読み込めません</div>'">
+                        <div class="card-body p-2">
+                            <small class="text-muted">画像 ${index + 1}</small>
+                            <div class="btn-group btn-group-sm w-100 mt-1">
+                                <button class="btn btn-outline-primary" onclick="copyImageUrl('${imageUrl}')">
+                                    <i class="bi bi-copy"></i> URL
+                                </button>
+                                <a href="${imageUrl}" target="_blank" class="btn btn-outline-secondary">
+                                    <i class="bi bi-box-arrow-up-right"></i> 開く
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            galleryContent.innerHTML = `
+                <div class="mb-3">
+                    <h6>${product.title}</h6>
+                    <p class="text-muted small">${product.description || ''}</p>
+                </div>
+                <div class="row">
+                    ${imagesHtml}
+                </div>
+            `;
+
+            const modal = new bootstrap.Modal(document.getElementById('imageGalleryModal'));
+            modal.show();
+        }
+
+        // 画像URLをコピー
+        function copyImageUrl(url) {
+            navigator.clipboard.writeText(url).then(() => {
+                showAlert('success', 'URLをコピーしました');
+            }).catch(() => {
+                showAlert('warning', 'URLコピーに失敗しました');
+            });
+        }
+
+        // 画像を新しいタブで開く
+        function openImageInNewTab(url) {
+            window.open(url, '_blank');
+        }
+
+        // 接続テスト（モーダル用）
+        async function testConnection() {
+            try {
+                showAlert('info', '接続テスト中...', 2000);
+                
+                const response = await fetch('/api/sheets/test-connection');
+                const data = await response.json();
+                
+                console.log('接続テスト結果（詳細）:', data);
+                
+                if (data.connected) {
+                    showAlert('success', '接続テストが成功しました！');
+                } else {
+                    showAlert('warning', `接続テスト失敗: ${data.message}`);
+                }
+            } catch (error) {
+                console.error('接続テストエラー:', error);
+                showAlert('danger', '接続テストでエラーが発生しました');
+            }
+        }
+
+        // タブ切り替え時のデータ読み込み
+        document.getElementById('affiliate-tab').addEventListener('shown.bs.tab', function() {
+            if (affiliateProducts.length === 0) {
+                loadAffiliateProducts();
+            }
+        });
+
+        // === LLM設定関連の関数 ===
+        
+        // LLM設定モーダルを開く
+        async function openLLMConfigModal() {
+            await loadLLMConfig();
+            const modal = new bootstrap.Modal(document.getElementById('llmConfigModal'));
+            modal.show();
+        }
+
+        // LLM設定を読み込み
+        async function loadLLMConfig() {
+            try {
+                const response = await fetch('/api/llm/config');
+                const data = await response.json();
+                
+                const container = document.getElementById('llm-providers-container');
+                container.innerHTML = '';
+                
+                data.available_providers.forEach(provider => {
+                    const card = createProviderConfigCard(provider);
+                    container.appendChild(card);
+                });
+                
+            } catch (error) {
+                console.error('LLM設定読み込みエラー:', error);
+                showAlert('danger', 'LLM設定の読み込みに失敗しました');
+            }
+        }
+
+        // プロバイダー設定カードを作成
+        function createProviderConfigCard(provider) {
+            const col = document.createElement('div');
+            col.className = 'col-md-6 mb-3';
+            
+            const availableIcon = provider.available ? 
+                '<i class="bi bi-check-circle text-success"></i>' : 
+                '<i class="bi bi-x-circle text-danger"></i>';
+            
+            const availableText = provider.available ? '利用可能' : '設定が必要';
+            
+            const models = provider.models.map(model => 
+                `<option value="${model}">${model}</option>`
+            ).join('');
+            
+            // Ollamaの場合はAPIキーフィールドを非表示にする
+            const isOllama = provider.name === 'ollama';
+            const apiKeySection = isOllama ? '' : `
+                <div class="mb-3">
+                    <label class="form-label">API Key</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" 
+                               id="${provider.name}-api-key" 
+                               placeholder="${provider.config.api_key_configured ? '設定済み' : 'API Keyを入力'}">
+                        <button class="btn btn-outline-secondary" type="button" 
+                                onclick="togglePasswordVisibility('${provider.name}-api-key')">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            const baseUrlPlaceholder = isOllama ? 
+                'http://localhost:11434' : 
+                'デフォルトのエンドポイントを使用';
+            
+            const baseUrlHelp = isOllama ? 
+                '<div class="form-text">Ollamaサーバーのエンドポイント（通常は localhost:11434）</div>' : 
+                '';
+            
+            col.innerHTML = `
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">
+                            <i class="bi bi-robot"></i>
+                            ${provider.display_name}
+                            ${isOllama ? '<small class="text-muted ms-2">(ローカル)</small>' : ''}
+                        </h6>
+                        <span class="badge ${provider.available ? 'bg-success' : 'bg-warning'}">
+                            ${availableIcon} ${availableText}
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        ${apiKeySection}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Base URL</label>
+                            <input type="text" class="form-control" 
+                                   id="${provider.name}-base-url" 
+                                   value="${provider.config.base_url}"
+                                   placeholder="${baseUrlPlaceholder}">
+                            ${baseUrlHelp}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">モデル</label>
+                            <div class="d-flex gap-2">
+                                <select class="form-select" id="${provider.name}-model">
+                                    ${models}
+                                </select>
+                                <button type="button" class="btn btn-outline-info btn-sm" 
+                                        onclick="showModelManager('${provider.name}')" 
+                                        title="モデル管理">
+                                    <i class="bi bi-gear"></i>
+                                </button>
+                            </div>
+                            ${isOllama ? '<div class="form-text">インストール済みモデルは「モデル管理」から追加できます</div>' : ''}
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-primary" 
+                                    onclick="saveLLMConfig('${provider.name}')">
+                                <i class="bi bi-check"></i>
+                                設定を保存
+                            </button>
+                            <button type="button" class="btn btn-outline-success" 
+                                    onclick="testLLMConnection('${provider.name}')">
+                                <i class="bi bi-wifi"></i>
+                                接続テスト
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // 現在の設定値をセット
+            setTimeout(() => {
+                const modelSelect = col.querySelector(`#${provider.name}-model`);
+                if (provider.config.model && modelSelect) {
+                    modelSelect.value = provider.config.model;
+                }
+            }, 0);
+            
+            return col;
+        }
+
+        // パスワード表示切り替え
+        function togglePasswordVisibility(inputId) {
+            const input = document.getElementById(inputId);
+            const icon = input.nextElementSibling.querySelector('i');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'bi bi-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'bi bi-eye';
+            }
+        }
+
+        // LLM設定を保存
+        async function saveLLMConfig(provider) {
+            try {
+                // Ollamaの場合はAPIキーフィールドが存在しない可能性がある
+                const apiKeyElement = document.getElementById(`${provider}-api-key`);
+                const apiKey = apiKeyElement ? apiKeyElement.value : '';
+                const baseUrl = document.getElementById(`${provider}-base-url`).value;
+                const model = document.getElementById(`${provider}-model`).value;
+                
+                const config = {
+                    provider: provider,
+                    api_key: provider === 'ollama' ? '' : (apiKey || undefined),
+                    base_url: baseUrl || undefined,
+                    model: model || undefined
+                };
+                
+                const response = await fetch('/api/llm/config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(config)
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || '設定保存に失敗しました');
+                }
+                
+                const result = await response.json();
+                showAlert('success', result.message);
+                
+                // 設定を再読み込み
+                await loadLLMConfig();
+                
+            } catch (error) {
+                console.error('LLM設定保存エラー:', error);
+                showAlert('danger', `設定保存エラー: ${error.message}`);
+            }
+        }
+
+        // LLM接続テスト
+        async function testLLMConnection(provider) {
+            try {
+                showAlert('info', `${provider} の接続テスト中...`, 2000);
+                
+                const response = await fetch(`/api/llm/test-connection/${provider}`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.connected) {
+                    let message = `${provider.toUpperCase()} の接続テストが成功しました！`;
+                    
+                    // Ollamaの場合は詳細情報を追加
+                    if (provider === 'ollama' && result.available_models !== undefined) {
+                        message += `\n利用可能モデル: ${result.available_models} 個`;
+                        if (result.test_model) {
+                            message += `\nテストモデル: ${result.test_model}`;
+                        }
+                    }
+                    
+                    showAlert('success', message);
+                } else {
+                    let errorMsg = `${provider.toUpperCase()} の接続テスト失敗`;
+                    if (result.error) {
+                        errorMsg += `\n詳細: ${result.error}`;
+                    }
+                    showAlert('warning', errorMsg);
+                }
+                
+            } catch (error) {
+                console.error('LLM接続テストエラー:', error);
+                showAlert('danger', `${provider.toUpperCase()} の接続テストでエラーが発生しました`);
+            }
+        }
+
+        // 全接続テスト
+        async function testAllConnections() {
+            try {
+                const response = await fetch('/api/llm/config');
+                const data = await response.json();
+                
+                showAlert('info', '全プロバイダーの接続テストを開始します...', 3000);
+                
+                for (const provider of data.available_providers) {
+                    if (provider.available) {
+                        await testLLMConnection(provider.name);
+                        await new Promise(resolve => setTimeout(resolve, 1000)); // 1秒待機
+                    }
+                }
+                
+                showAlert('success', '全接続テストが完了しました');
+                
+            } catch (error) {
+                console.error('全接続テストエラー:', error);
+                showAlert('danger', '全接続テストでエラーが発生しました');
+            }
+        }
+
+        // === モデル管理関連の関数 ===
+        let currentModelProvider = '';
+
+        // モデル管理モーダルを表示
+        async function showModelManager(provider) {
+            currentModelProvider = provider;
+            document.getElementById('model-manager-provider').textContent = provider.toUpperCase();
+            
+            // Ollamaの場合はOllamaモデル読み込みボタンを表示
+            const ollamaBtn = document.getElementById('load-ollama-models-btn');
+            const ollamaSection = document.getElementById('ollama-installed-models');
+            if (provider === 'ollama') {
+                ollamaBtn.style.display = 'block';
+                ollamaSection.style.display = 'block';
+            } else {
+                ollamaBtn.style.display = 'none';
+                ollamaSection.style.display = 'none';
+            }
+            
+            await loadProviderModels(provider);
+            
+            const modal = new bootstrap.Modal(document.getElementById('modelManagerModal'));
+            modal.show();
+        }
+
+        // プロバイダーのモデル一覧を読み込み
+        async function loadProviderModels(provider) {
+            try {
+                const response = await fetch(`/api/llm/models/${provider}`);
+                const data = await response.json();
+                
+                const modelsList = document.getElementById('models-list');
+                modelsList.innerHTML = '';
+                
+                // デフォルトモデルとカスタムモデルを分けて表示
+                const defaultModels = data.models.filter(model => 
+                    !data.custom_models.includes(model)
+                );
+                const customModels = data.custom_models;
+                
+                // デフォルトモデル
+                if (defaultModels.length > 0) {
+                    const defaultSection = document.createElement('div');
+                    defaultSection.innerHTML = `
+                        <h6 class="text-muted mb-2">
+                            <i class="bi bi-collection"></i>
+                            デフォルトモデル
+                        </h6>
+                    `;
+                    
+                    defaultModels.forEach(model => {
+                        const modelItem = document.createElement('div');
+                        modelItem.className = 'badge bg-light text-dark me-1 mb-1';
+                        modelItem.innerHTML = `
+                            <i class="bi bi-robot"></i>
+                            ${model}
+                        `;
+                        defaultSection.appendChild(modelItem);
+                    });
+                    
+                    modelsList.appendChild(defaultSection);
+                }
+                
+                // カスタムモデル
+                if (customModels.length > 0) {
+                    const customSection = document.createElement('div');
+                    customSection.className = 'mt-3';
+                    customSection.innerHTML = `
+                        <h6 class="text-muted mb-2">
+                            <i class="bi bi-gear"></i>
+                            カスタムモデル
+                        </h6>
+                    `;
+                    
+                    customModels.forEach(model => {
+                        const modelItem = document.createElement('div');
+                        modelItem.className = 'd-flex justify-content-between align-items-center bg-light p-2 rounded mb-1';
+                        modelItem.innerHTML = `
+                            <span>
+                                <i class="bi bi-robot text-primary"></i>
+                                ${model}
+                            </span>
+                            <button type="button" class="btn btn-outline-danger btn-sm" 
+                                    onclick="removeCustomModel('${provider}', '${model}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        `;
+                        customSection.appendChild(modelItem);
+                    });
+                    
+                    modelsList.appendChild(customSection);
+                } else if (defaultModels.length === 0) {
+                    modelsList.innerHTML = '<div class="text-muted text-center py-3">モデルがありません</div>';
+                }
+                
+                // Ollamaの場合はインストール済みモデルも読み込み
+                if (provider === 'ollama') {
+                    await loadOllamaInstalledModels();
+                }
+                
+            } catch (error) {
+                console.error('モデル一覧読み込みエラー:', error);
+                showAlert('danger', 'モデル一覧の読み込みに失敗しました');
+            }
+        }
+
+        // カスタムモデルを追加
+        async function addCustomModel() {
+            const modelName = document.getElementById('new-model-name').value.trim();
+            
+            if (!modelName) {
+                showAlert('warning', 'モデル名を入力してください');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/llm/models/add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        provider: currentModelProvider,
+                        model_name: modelName
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'モデル追加に失敗しました');
+                }
+                
+                const result = await response.json();
+                showAlert('success', result.message);
+                
+                // フォームをクリア
+                document.getElementById('new-model-name').value = '';
+                
+                // モデル一覧を再読み込み
+                await loadProviderModels(currentModelProvider);
+                
+                // LLM設定のプロバイダー設定も更新
+                await loadLLMConfig();
+                
+            } catch (error) {
+                console.error('カスタムモデル追加エラー:', error);
+                showAlert('danger', `モデル追加エラー: ${error.message}`);
+            }
+        }
+
+        // カスタムモデルを削除
+        async function removeCustomModel(provider, modelName) {
+            if (!confirm(`${modelName} を削除しますか？`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/llm/models/${provider}/${encodeURIComponent(modelName)}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'モデル削除に失敗しました');
+                }
+                
+                const result = await response.json();
+                showAlert('success', result.message);
+                
+                // モデル一覧を再読み込み
+                await loadProviderModels(provider);
+                
+                // LLM設定のプロバイダー設定も更新
+                await loadLLMConfig();
+                
+            } catch (error) {
+                console.error('カスタムモデル削除エラー:', error);
+                showAlert('danger', `モデル削除エラー: ${error.message}`);
+            }
+        }
+
+        // Ollamaインストール済みモデルを読み込み
+        async function loadOllamaInstalledModels() {
+            try {
+                const response = await fetch('/api/llm/ollama/installed-models');
+                const data = await response.json();
+                
+                const installedList = document.getElementById('installed-models-list');
+                installedList.innerHTML = '';
+                
+                if (data.models.length > 0) {
+                    data.models.forEach(model => {
+                        const modelItem = document.createElement('div');
+                        modelItem.className = 'd-flex justify-content-between align-items-center bg-success bg-opacity-10 p-2 rounded mb-1';
+                        modelItem.innerHTML = `
+                            <span>
+                                <i class="bi bi-hdd text-success"></i>
+                                ${model}
+                            </span>
+                            <button type="button" class="btn btn-outline-primary btn-sm" 
+                                    onclick="addModelFromOllama('${model}')">
+                                <i class="bi bi-plus"></i>
+                                追加
+                            </button>
+                        `;
+                        installedList.appendChild(modelItem);
+                    });
+                } else {
+                    installedList.innerHTML = '<div class="text-muted text-center py-3">Ollamaモデルが見つかりません</div>';
+                }
+                
+            } catch (error) {
+                console.error('Ollamaモデル読み込みエラー:', error);
+                const installedList = document.getElementById('installed-models-list');
+                installedList.innerHTML = '<div class="text-danger text-center py-3">Ollamaに接続できません</div>';
+            }
+        }
+
+        // Ollamaモデルをカスタムモデルに追加
+        async function addModelFromOllama(modelName) {
+            document.getElementById('new-model-name').value = modelName;
+            await addCustomModel();
+        }
+
+        // Ollamaモデルを読み込み（ボタン用）
+        async function loadOllamaModels() {
+            showAlert('info', 'Ollamaモデルを読み込み中...', 2000);
+            await loadOllamaInstalledModels();
+        }
+
+        // 商品から直接投稿生成（商品カードのボタン用）
+        async function generateFromProduct(productId) {
+            // 商品を選択
+            const selectEl = document.getElementById('selected-product');
+            selectEl.value = productId;
+            
+            // 選択された商品の情報をログ出力
+            const selectedProduct = affiliateProducts.find(p => p.id === productId);
+            console.log('商品から直接生成:', {
+                productId: productId,
+                productName: selectedProduct ? (selectedProduct.name || selectedProduct.title) : 'Unknown',
+                hasProduct: !!selectedProduct
+            });
+            
+            // 単体投稿生成を実行
+            await generateSinglePost();
+        }
+
+        // システム状況デバッグを表示
+        async function showDebugLogs() {
+            try {
+                showAlert('info', 'システム状況を取得中...', 2000);
+                
+                const response = await fetch('/api/llm/debug/system-status');
+                const debugData = await response.json();
+                
+                console.log('=== システム詳細デバッグ情報 ===', debugData);
+                
+                let message = '=== システム状況デバッグ ===\n\n';
+                
+                if (debugData.error) {
+                    message += `【エラー】\n${debugData.error}\n`;
+                    if (debugData.traceback) {
+                        console.error('スタックトレース:', debugData.traceback);
+                    }
+                } else {
+                    // LLM設定状況
+                    message += '【LLM設定状況】\n';
+                    Object.entries(debugData.llm_config || {}).forEach(([provider, config]) => {
+                        const hasApiKey = config.api_key ? '✅' : '❌';
+                        const hasModel = config.model ? '✅' : '❌';
+                        message += `${provider.toUpperCase()}: API Key ${hasApiKey}, Model ${hasModel} (${config.model || 'なし'})\n`;
+                    });
+                    
+                    // プロバイダー利用可能性
+                    message += '\n【プロバイダー状況】\n';
+                    (debugData.providers || []).forEach(provider => {
+                        const status = provider.available ? '✅ 利用可能' : '❌ 設定不完全';
+                        message += `${provider.display_name}: ${status}\n`;
+                    });
+                    
+                    // Ollama詳細情報
+                    if (debugData.ollama_detailed) {
+                        message += '\n【Ollama詳細】\n';
+                        if (debugData.ollama_detailed.error) {
+                            message += `❌ エラー: ${debugData.ollama_detailed.error}\n`;
+                        } else {
+                            message += `Base URL: ${debugData.ollama_detailed.base_url}\n`;
+                            message += `モデル数: ${debugData.ollama_detailed.model_count}\n`;
+                            if (debugData.ollama_detailed.available_models.length > 0) {
+                                message += `利用可能モデル: ${debugData.ollama_detailed.available_models.slice(0, 3).join(', ')}`;
+                                if (debugData.ollama_detailed.available_models.length > 3) {
+                                    message += ` 他${debugData.ollama_detailed.available_models.length - 3}個`;
+                                }
+                                message += '\n';
+                            }
+                            
+                            const connTest = debugData.ollama_detailed.connection_test;
+                            if (connTest && connTest.connected !== undefined) {
+                                message += `接続テスト: ${connTest.connected ? '✅ 成功' : '❌ 失敗'}\n`;
+                                if (!connTest.connected && connTest.error) {
+                                    message += `接続エラー: ${connTest.error}\n`;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // 環境変数状況
+                    message += '\n【環境変数】\n';
+                    Object.entries(debugData.system?.environment_vars || {}).forEach(([key, value]) => {
+                        message += `${key}: ${value}\n`;
+                    });
+                    
+                    // ログ設定
+                    message += '\n【ログ設定】\n';
+                    message += `レベル: ${debugData.logging?.level_name || 'Unknown'}\n`;
+                    message += `ハンドラー数: ${debugData.logging?.handlers?.length || 0}\n`;
+                }
+                
+                console.log(message);
+                showAlert('info', message, 20000);
+                
+            } catch (error) {
+                console.error('システム状況取得エラー:', error);
+                showAlert('danger', 'システム状況の取得に失敗しました');
+            }
+        }
+
+        // LLM生成プロセステスト
+        async function testGenerationProcess() {
+            try {
+                showAlert('info', 'LLM生成プロセスをテスト中...', 3000);
+                
+                const response = await fetch('/api/llm/debug/test-generation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                console.log('=== 生成プロセステスト結果 ===', result);
+                
+                let message = '=== LLM生成プロセステスト結果 ===\n\n';
+                
+                if (result.error) {
+                    message += `【エラー】\n${result.error}\n`;
+                    if (result.traceback) {
+                        console.error('テストエラー詳細:', result.traceback);
+                    }
+                } else {
+                    // デバッグログ表示
+                    if (result.debug_log && result.debug_log.length > 0) {
+                        message += '【実行ログ】\n';
+                        result.debug_log.forEach(log => {
+                            message += `${log}\n`;
+                        });
+                        message += '\n';
+                    }
+                    
+                    // 生成結果サマリー
+                    if (result.generation_results) {
+                        message += '【生成結果サマリー】\n';
+                        Object.entries(result.generation_results).forEach(([provider, genResult]) => {
+                            if (genResult.success) {
+                                const contentLength = genResult.content ? genResult.content.length : 0;
+                                message += `✅ ${provider.toUpperCase()}: 成功 (${contentLength}文字)\n`;
+                                if (genResult.content) {
+                                    const preview = genResult.content.length > 50 ? 
+                                        genResult.content.substring(0, 50) + '...' : 
+                                        genResult.content;
+                                    message += `   内容: "${preview}"\n`;
+                                }
+                            } else {
+                                message += `❌ ${provider.toUpperCase()}: 失敗\n`;
+                                if (genResult.error) {
+                                    message += `   エラー: ${genResult.error}\n`;
+                                }
+                            }
+                        });
+                        message += '\n';
+                    }
+                    
+                    // 利用可能プロバイダー
+                    if (result.available_providers) {
+                        message += `【利用可能プロバイダー】\n${result.available_providers.join(', ')}\n\n`;
+                    }
+                    
+                    // 成功した場合の推奨アクション
+                    const successfulProviders = Object.entries(result.generation_results || {})
+                        .filter(([_, genResult]) => genResult.success)
+                        .map(([provider, _]) => provider);
+                    
+                    if (successfulProviders.length > 0) {
+                        message += `✅ ${successfulProviders.join(', ')} で生成成功！これらのプロバイダーを使用してください。`;
+                    } else {
+                        message += '❌ すべてのプロバイダーで生成失敗。設定を確認してください。';
+                    }
+                }
+                
+                console.log(message);
+                showAlert(result.success ? 'success' : 'warning', message, 25000);
+                
+            } catch (error) {
+                console.error('生成プロセステストエラー:', error);
+                showAlert('danger', '生成プロセステストでエラーが発生しました');
+            }
+        }
+
+        // Ollama簡単投稿生成テスト
+        async function quickOllamaTest() {
+            try {
+                showAlert('info', 'Ollamaで投稿生成をテスト中...', 3000);
+                
+                const response = await fetch('/api/llm/quick-ollama-test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                console.log('=== Ollama簡単テスト結果 ===', result);
+                
+                if (result.success) {
+                    let message = '✅ Ollama投稿生成成功！\n\n';
+                    message += `【使用モデル】\n${result.model_used}\n\n`;
+                    message += `【生成された投稿】\n"${result.content}"\n\n`;
+                    message += `【利用可能モデル】\n${result.available_models.join(', ')}\n\n`;
+                    message += `${result.message}`;
+                    
+                    showAlert('success', message, 15000);
+                    
+                    // 生成結果を表示エリアにも表示
+                    if (typeof showGenerationResult === 'function') {
+                        showGenerationResult(result.content, {
+                            product_name: 'テスト商品',
+                            category: 'テスト'
+                        });
+                    }
+                } else {
+                    let message = '❌ Ollama投稿生成失敗\n\n';
+                    message += `【エラー】\n${result.error}\n\n`;
+                    
+                    if (result.available_models && result.available_models.length > 0) {
+                        message += `【利用可能モデル】\n${result.available_models.join(', ')}\n\n`;
+                        message += '利用可能なモデルはありますが、生成に失敗しました。';
+                    } else {
+                        message += '【対処法】\n';
+                        message += '1. Ollamaがインストールされていることを確認\n';
+                        message += '2. `ollama pull llama2` または `ollama pull gemma3:27b` でモデルをインストール\n';
+                        message += '3. Ollamaサーバーが起動していることを確認 (`ollama serve`)';
+                    }
+                    
+                    showAlert('warning', message, 15000);
+                }
+                
+            } catch (error) {
+                console.error('Ollama簡単テストエラー:', error);
+                showAlert('danger', 'Ollama簡単テストでエラーが発生しました');
+            }
+        }
+
+        // Ollama専用接続テスト
+        async function testOllamaConnection() {
+            try {
+                showAlert('info', 'Ollama接続テスト中...', 2000);
+                
+                const response = await fetch('/api/llm/test-connection/ollama', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.connected) {
+                    let message = 'Ollama接続テスト成功！';
+                    
+                    if (result.available_models !== undefined) {
+                        message += `\n利用可能モデル: ${result.available_models} 個`;
+                        if (result.test_model) {
+                            message += `\nテストモデル: ${result.test_model}`;
+                        }
+                    }
+                    
+                    showAlert('success', message);
+                } else {
+                    let errorMsg = 'Ollama接続テスト失敗';
+                    if (result.error) {
+                        errorMsg += `\n詳細: ${result.error}`;
+                    }
+                    showAlert('warning', errorMsg);
+                }
+                
+            } catch (error) {
+                console.error('Ollama接続テストエラー:', error);
+                showAlert('danger', 'Ollama接続テストでエラーが発生しました');
+            }
+        }
+
+        // === AI投稿生成設定診断 ===
+        
+        // 設定診断
+        async function diagnoseGenerationSettings() {
+            console.log('=== AI投稿生成設定診断開始 ===');
+            
+            let diagnostics = [];
+            let issues = [];
+            
+            // 1. Google Sheets接続状態
+            if (isConnected) {
+                diagnostics.push('✅ Google Sheets API: 接続済み');
+            } else {
+                issues.push('❌ Google Sheets API: 未接続');
+            }
+            
+            // 2. 商品データ
+            if (affiliateProducts.length > 0) {
+                diagnostics.push(`✅ 商品データ: ${affiliateProducts.length} 件読み込み済み`);
+            } else {
+                issues.push('❌ 商品データ: 未読み込み');
+            }
+            
+            // 3. 商品選択
+            const productId = document.getElementById('selected-product').value;
+            if (productId) {
+                const selectedProduct = affiliateProducts.find(p => p.id === productId);
+                if (selectedProduct) {
+                    diagnostics.push(`✅ 商品選択: ${selectedProduct.name || selectedProduct.title || 'Unknown'}`);
+                } else {
+                    issues.push('❌ 商品選択: 選択された商品が見つかりません');
+                }
+            } else {
+                issues.push('❌ 商品選択: 商品が選択されていません');
+            }
+            
+            // 4. LLM設定
+            const settings = getGenerationSettings();
+            if (settings.provider) {
+                try {
+                    const llmConfigResponse = await fetch('/api/llm/config');
+                    const llmConfig = await llmConfigResponse.json();
+                    const selectedProvider = llmConfig.available_providers.find(p => p.name === settings.provider);
+                    
+                    if (selectedProvider && selectedProvider.available) {
+                        diagnostics.push(`✅ LLMプロバイダー: ${settings.provider.toUpperCase()} (設定済み)`);
+                    } else {
+                        issues.push(`❌ LLMプロバイダー: ${settings.provider.toUpperCase()} (設定不完全)`);
+                    }
+                } catch (error) {
+                    issues.push('❌ LLM設定: 設定確認エラー');
+                }
+            } else {
+                issues.push('❌ LLMプロバイダー: 未選択');
+            }
+            
+            // 5. 生成設定
+            if (settings.post_type && settings.tone && settings.target_audience) {
+                diagnostics.push(`✅ 生成設定: タイプ=${settings.post_type}, トーン=${settings.tone}`);
+            } else {
+                issues.push('❌ 生成設定: 設定が不完全');
+            }
+            
+            // 結果表示
+            let message = '=== AI投稿生成設定診断結果 ===\n\n';
+            
+            if (diagnostics.length > 0) {
+                message += '【正常項目】\n' + diagnostics.join('\n') + '\n\n';
+            }
+            
+            if (issues.length > 0) {
+                message += '【要修正項目】\n' + issues.join('\n') + '\n\n';
+                message += '【推奨アクション】\n';
+                
+                if (issues.some(i => i.includes('Google Sheets'))) {
+                    message += '• Google Sheets設定を完了してください\n';
+                }
+                if (issues.some(i => i.includes('商品データ'))) {
+                    message += '• アフィリ商品管理タブで商品を読み込んでください\n';
+                }
+                if (issues.some(i => i.includes('商品選択'))) {
+                    message += '• 商品選択プルダウンから商品を選択してください\n';
+                }
+                if (issues.some(i => i.includes('LLM'))) {
+                    message += '• LLM設定でAPIキーを設定してください\n';
+                }
+            } else {
+                message += '🎉 すべての設定が正常です！投稿生成を実行できます。';
+            }
+            
+            console.log(message);
+            showAlert(issues.length > 0 ? 'warning' : 'success', message, 10000);
+        }
+    </script>
+</body>
+</html>
