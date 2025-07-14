@@ -76,13 +76,14 @@ class SheetsService:
         """認証状態を確認"""
         return self.service is not None
     
-    def read_sheet(self, sheet_name: str, range_name: str = None) -> List[List[str]]:
+    def read_sheet(self, sheet_name: str, range_name: str = None, max_rows: int = 1000) -> List[List[str]]:
         """
         シートからデータを読み取り
         
         Args:
             sheet_name: シート名
             range_name: 読み取り範囲（例: "A1:E10"）
+            max_rows: 最大読み込み行数（デフォルト: 1000）
         
         Returns:
             List[List[str]]: シートデータ
@@ -94,7 +95,8 @@ class SheetsService:
             if range_name:
                 range_notation = f"{sheet_name}!{range_name}"
             else:
-                range_notation = sheet_name
+                # 範囲が指定されていない場合は、最大行数まで読み込み
+                range_notation = f"{sheet_name}!A1:ZZ{max_rows}"
             
             logger.info(f"シート読み込み開始: {range_notation}, スプレッドシートID: {self.spreadsheet_id}")
             
@@ -107,6 +109,7 @@ class SheetsService:
             logger.info(f"シート '{sheet_name}' から {len(values)} 行のデータを読み込みました")
             if values:
                 logger.debug(f"最初の数行のデータ: {values[:3]}")
+                logger.info(f"最後の数行のインデックス: {len(values)-3} - {len(values)-1}")
             else:
                 logger.warning(f"シート '{sheet_name}' にデータが見つかりません")
             
@@ -291,20 +294,25 @@ class SheetsService:
             affiliate_data = []
             
             for i, row in enumerate(data[1:], start=2):
-                if len(row) >= len(headers):
-                    # 行の長さをヘッダーに合わせる
-                    row_data = row[:len(headers)]
-                    item_data = dict(zip(headers, row_data))
-                    
-                    # 空の行はスキップ
-                    if not any(str(v).strip() for v in item_data.values() if v):
-                        logger.debug(f"行 {i} は空のためスキップします")
-                        continue
-                    
-                    affiliate_data.append(item_data)
-                    logger.debug(f"行 {i} のデータ: {item_data}")
-                else:
-                    logger.warning(f"行 {i} の列数が不足しています (期待: {len(headers)}, 実際: {len(row)})")
+                # 行の長さを調整（不足分は空文字で埋める）
+                while len(row) < len(headers):
+                    row.append('')
+                
+                # 行の長さをヘッダーに合わせる（余分な列は切り捨て）
+                row_data = row[:len(headers)]
+                item_data = dict(zip(headers, row_data))
+                
+                # 空の行はスキップ（すべての値が空文字または空白のみの場合）
+                if not any(str(v).strip() for v in item_data.values() if v):
+                    logger.debug(f"行 {i} は空のためスキップします")
+                    continue
+                
+                affiliate_data.append(item_data)
+                logger.debug(f"行 {i} のデータを追加: 列数={len(row_data)}")
+                
+                # 列数が元々不足していた場合は警告
+                if len(row) < len(headers):
+                    logger.debug(f"行 {i} の列数が不足していましたが補完しました (期待: {len(headers)}, 実際: {len(row)})")
             
             logger.info(f"アフィリエイトデータ取得完了: {len(affiliate_data)} 件")
             return affiliate_data

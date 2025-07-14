@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
+<body class="bg-gray-100">
+    <!-- ナビゲーション -->
+    <nav class="bg-blue-600 text-white shadow-lg">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center py-4">
+                <h1 class="text-xl font-bold">
+                    <a href="/" class="hover:text-blue-200">Python Auto Tweeter</a>
+                </h1>
+                <div class="flex space-x-4">
+                    <a href="/" class="hover:text-blue-200">ダッシュボード</a>
+                    <a href="/bots" class="hover:text-blue-200">ボット管理</a>
+                    <a href="/posts" class="hover:text-blue-200">投稿履歴</a>
+                    <a href="/sheets" class="hover:text-blue-200">スプレッドシート</a>
+                    <a href="/analytics" class="text-blue-200 font-semibold">分析</a>
+                    <a href="/twitter" class="hover:text-blue-200">Twitter連携</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4 py-8" x-data="analyticsData()">
+        <!-- ヘッダー -->
+        <div class="mb-8">
+            <h2 class="text-3xl font-bold text-gray-800 mb-4">分析ダッシュボード</h2>
+            <div class="flex flex-wrap gap-4">
+                <!-- ボット選択 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">ボット選択</label>
+                    <select x-model="selectedBot" @change="loadAnalytics()" 
+                            class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
+                        <option value="">全ボット</option>
+                        <template x-for="bot in bots" :key="bot.id">
+                            <option :value="bot.id" x-text="bot.name"></option>
+                        </template>
+                    </select>
+                </div>
+                
+                <!-- 期間選択 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">分析期間</label>
+                    <select x-model="selectedDays" @change="loadAnalytics()" 
+                            class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
+                        <option value="7">過去7日</option>
+                        <option value="30">過去30日</option>
+                        <option value="90">過去90日</option>
+                    </select>
+                </div>
+                
+                <!-- 更新ボタン -->
+                <div class="flex items-end">
+                    <button @click="loadAnalytics()" 
+                            class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                        <span x-show="!loading">データ更新</span>
+                        <span x-show="loading">読み込み中...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 概要統計カード -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8" x-show="overview">
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h3 class="text-lg font-semibold text-gray-700 mb-2">総投稿数</h3>
+                <p class="text-3xl font-bold text-blue-600" x-text="overview?.posts?.total || 0"></p>
+                <p class="text-sm text-gray-500 mt-1">
+                    成功率: <span x-text="(overview?.posts?.success_rate || 0).toFixed(1)"></span>%
+                </p>
+            </div>
+            
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h3 class="text-lg font-semibold text-gray-700 mb-2">平均エンゲージメント</h3>
+                <p class="text-3xl font-bold text-green-600" 
+                   x-text="((overview?.engagement?.avg_likes || 0) + (overview?.engagement?.avg_retweets || 0) + (overview?.engagement?.avg_replies || 0)).toFixed(1)"></p>
+                <p class="text-sm text-gray-500 mt-1">いいね・RT・返信の合計</p>
+            </div>
+            
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h3 class="text-lg font-semibold text-gray-700 mb-2">AI生成投稿率</h3>
+                <p class="text-3xl font-bold text-purple-600" x-text="(overview?.content_types?.ai_ratio || 0).toFixed(1)"></p>
+                <p class="text-sm text-gray-500 mt-1">%</p>
+            </div>
+            
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h3 class="text-lg font-semibold text-gray-700 mb-2">最適投稿時間</h3>
+                <p class="text-3xl font-bold text-orange-600" 
+                   x-text="timeAnalysis?.best_posting_hours?.slice(0,2).join('時, ') + '時' || '-'"></p>
+                <p class="text-sm text-gray-500 mt-1">エンゲージメントが高い時間</p>
+            </div>
+        </div>
+
+        <!-- チャートエリア -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <!-- 投稿時間分析 -->
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h3 class="text-xl font-semibold text-gray-800 mb-4">時間帯別パフォーマンス</h3>
+                <canvas id="timeChart" width="400" height="200"></canvas>
+            </div>
+
+            <!-- エンゲージメント推移 -->
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h3 class="text-xl font-semibold text-gray-800 mb-4">エンゲージメント推移</h3>
+                <canvas id="trendChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+
+        <!-- コンテンツ分析 -->
+        <div class="bg-white p-6 rounded-lg shadow-md mb-8" x-show="contentAnalysis">
+            <h3 class="text-xl font-semibold text-gray-800 mb-4">コンテンツ分析</h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- 長さ別分析 -->
+                <div>
+                    <h4 class="font-semibold text-gray-700 mb-3">投稿長さ別パフォーマンス</h4>
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm">短文 (≤50文字)</span>
+                            <span class="text-sm font-medium" 
+                                  x-text="(contentAnalysis?.length_analysis?.short_posts?.avg_engagement || 0).toFixed(1)"></span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm">中文 (51-150文字)</span>
+                            <span class="text-sm font-medium" 
+                                  x-text="(contentAnalysis?.length_analysis?.medium_posts?.avg_engagement || 0).toFixed(1)"></span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm">長文 (>150文字)</span>
+                            <span class="text-sm font-medium" 
+                                  x-text="(contentAnalysis?.length_analysis?.long_posts?.avg_engagement || 0).toFixed(1)"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- メディア効果 -->
+                <div>
+                    <h4 class="font-semibold text-gray-700 mb-3">メディア効果</h4>
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm">メディアあり</span>
+                            <span class="text-sm font-medium" 
+                                  x-text="(contentAnalysis?.media_analysis?.avg_engagement_with_media || 0).toFixed(1)"></span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm">メディアなし</span>
+                            <span class="text-sm font-medium" 
+                                  x-text="(contentAnalysis?.media_analysis?.avg_engagement_without_media || 0).toFixed(1)"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ハッシュタグ効果 -->
+                <div>
+                    <h4 class="font-semibold text-gray-700 mb-3">トップハッシュタグ</h4>
+                    <div class="space-y-2" x-show="contentAnalysis?.hashtag_analysis?.top_hashtags">
+                        <template x-for="hashtag in (contentAnalysis?.hashtag_analysis?.top_hashtags || []).slice(0, 5)" :key="hashtag[0]">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm" x-text="hashtag[0]"></span>
+                                <span class="text-sm font-medium" x-text="hashtag[1].avg_engagement.toFixed(1)"></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 推奨事項 -->
+        <div class="bg-white p-6 rounded-lg shadow-md mb-8" x-show="recommendations && recommendations.length > 0">
+            <h3 class="text-xl font-semibold text-gray-800 mb-4">推奨事項</h3>
+            <div class="space-y-4">
+                <template x-for="rec in recommendations" :key="rec.type">
+                    <div class="border-l-4 border-blue-500 pl-4 py-2">
+                        <h4 class="font-semibold text-gray-700" x-text="rec.title"></h4>
+                        <p class="text-gray-600 text-sm" x-text="rec.description"></p>
+                        <span class="inline-block mt-1 px-2 py-1 text-xs rounded-full"
+                              :class="{
+                                  'bg-red-100 text-red-800': rec.priority === 'high',
+                                  'bg-yellow-100 text-yellow-800': rec.priority === 'medium',
+                                  'bg-green-100 text-green-800': rec.priority === 'low'
+                              }"
+                              x-text="rec.priority === 'high' ? '重要' : rec.priority === 'medium' ? '中' : '低'"></span>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- トップパフォーマンス投稿 -->
+        <div class="bg-white p-6 rounded-lg shadow-md" x-show="contentAnalysis?.top_performing_posts">
+            <h3 class="text-xl font-semibold text-gray-800 mb-4">トップパフォーマンス投稿</h3>
+            <div class="space-y-4">
+                <template x-for="post in (contentAnalysis?.top_performing_posts || [])" :key="post.id">
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <p class="text-gray-800" x-text="post.content"></p>
+                                <div class="flex space-x-4 mt-2 text-sm text-gray-500">
+                                    <span>❤️ <span x-text="post.likes"></span></span>
+                                    <span>🔄 <span x-text="post.retweets"></span></span>
+                                    <span>💬 <span x-text="post.replies"></span></span>
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm font-medium"
+                                      x-text="post.engagement"></span>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function analyticsData() {
+            return {
+                selectedBot: '',
+                selectedDays: 30,
+                loading: false,
+                bots: [],
+                overview: null,
+                timeAnalysis: null,
+                contentAnalysis: null,
+                recommendations: [],
+                timeChart: null,
+                trendChart: null,
+
+                async init() {
+                    await this.loadBots();
+                    await this.loadAnalytics();
+                },
+
+                async loadBots() {
+                    try {
+                        const response = await fetch('/api/bots');
+                        const data = await response.json();
+                        this.bots = data;
+                    } catch (error) {
+                        console.error('ボット一覧の取得に失敗:', error);
+                    }
+                },
+
+                async loadAnalytics() {
+                    this.loading = true;
+                    
+                    try {
+                        // 並行してデータを取得
+                        const [overviewResponse, timeResponse, contentResponse, recResponse] = await Promise.all([
+                            fetch(`/api/analytics/overview?${new URLSearchParams({
+                                ...(this.selectedBot && { bot_id: this.selectedBot }),
+                                days: this.selectedDays
+                            })}`),
+                            fetch(`/api/analytics/posting-time?${new URLSearchParams({
+                                ...(this.selectedBot && { bot_id: this.selectedBot }),
+                                days: this.selectedDays
+                            })}`),
+                            fetch(`/api/analytics/content-performance?${new URLSearchParams({
+                                ...(this.selectedBot && { bot_id: this.selectedBot }),
+                                days: this.selectedDays
+                            })}`),
+                            this.selectedBot ? fetch(`/api/analytics/recommendations/${this.selectedBot}`) : Promise.resolve({json: () => ({data: {recommendations: []}})})
+                        ]);
+
+                        const overviewData = await overviewResponse.json();
+                        const timeData = await timeResponse.json();
+                        const contentData = await contentResponse.json();
+                        const recData = await recResponse.json();
+
+                        this.overview = overviewData.data;
+                        this.timeAnalysis = timeData.data;
+                        this.contentAnalysis = contentData.data;
+                        this.recommendations = recData.data?.recommendations || [];
+
+                        // チャートを更新
+                        this.updateCharts();
+
+                    } catch (error) {
+                        console.error('分析データの取得に失敗:', error);
+                        alert('分析データの取得に失敗しました');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                updateCharts() {
+                    this.$nextTick(() => {
+                        this.updateTimeChart();
+                        this.updateTrendChart();
+                    });
+                },
+
+                updateTimeChart() {
+                    const ctx = document.getElementById('timeChart');
+                    if (!ctx || !this.timeAnalysis) return;
+
+                    if (this.timeChart) {
+                        this.timeChart.destroy();
+                    }
+
+                    const hourlyData = this.timeAnalysis.hourly_data || [];
+                    
+                    this.timeChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: hourlyData.map(d => d.hour + '時'),
+                            datasets: [{
+                                label: '平均エンゲージメント',
+                                data: hourlyData.map(d => d.avg_engagement),
+                                backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                                borderColor: 'rgba(59, 130, 246, 1)',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                },
+
+                updateTrendChart() {
+                    const ctx = document.getElementById('trendChart');
+                    if (!ctx) return;
+
+                    if (this.trendChart) {
+                        this.trendChart.destroy();
+                    }
+
+                    // サンプルデータ（実際のトレンドデータが必要）
+                    const labels = [];
+                    const data = [];
+                    
+                    for (let i = this.selectedDays - 1; i >= 0; i--) {
+                        const date = new Date();
+                        date.setDate(date.getDate() - i);
+                        labels.push(date.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' }));
+                        data.push(Math.floor(Math.random() * 100));
+                    }
+
+                    this.trendChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'エンゲージメント',
+                                data: data,
+                                borderColor: 'rgba(34, 197, 94, 1)',
+                                backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        }
+    </script>
+</body>
+</html>

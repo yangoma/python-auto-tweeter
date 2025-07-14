@@ -10,7 +10,7 @@ from pathlib import Path
 from .core.config import settings
 from .core.database import engine, Base
 from .utils.logger import logger
-from .api import users, twitter, bots, sheets, llm
+from .api import users, twitter, bots, sheets, llm, analytics
 from .services.scheduler_service import scheduler_service
 import os
 
@@ -293,6 +293,7 @@ app.include_router(twitter.router, prefix="/api/twitter", tags=["twitter"])
 app.include_router(bots.router, prefix="/api/bots", tags=["bots"])
 app.include_router(sheets.router, prefix="/api/sheets", tags=["sheets"])
 app.include_router(llm.router, prefix="/api/llm", tags=["llm"])
+app.include_router(analytics.router, prefix="/api/analytics", tags=["analytics"])
 
 
 if __name__ == "__main__":

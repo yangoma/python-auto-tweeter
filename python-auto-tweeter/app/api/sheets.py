@@ -608,6 +608,158 @@ async def create_sample_sheet():
         raise HTTPException(status_code=500, detail=f"作成エラー: {str(e)}")
 
 
+@router.get("/affiliate-data")
+async def get_affiliate_data(
+    sheet_name: str = "アフィリ用データ",
+    limit: Optional[int] = None
+):
+    """アフィリエイトデータを取得"""
+    try:
+        if not sheets_service.is_authenticated():
+            raise HTTPException(
+                status_code=400, 
+                detail="Google Sheets API認証が必要です"
+            )
+        
+        # スプレッドシートからアフィリエイトデータを取得
+        affiliate_data = sheets_service.get_affiliate_data(sheet_name)
+        
+        if not affiliate_data:
+            return {
+                "message": "アフィリエイトデータが見つかりませんでした",
+                "data": [],
+                "count": 0,
+                "sheet_name": sheet_name
+            }
+        
+        # 制限がある場合は制限を適用
+        if limit:
+            affiliate_data = affiliate_data[:limit]
+        
+        return {
+            "message": f"{len(affiliate_data)} 件のアフィリエイトデータを取得しました",
+            "data": affiliate_data,
+            "count": len(affiliate_data),
+            "sheet_name": sheet_name,
+            "limit_applied": limit if limit else "なし"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"取得エラー: {str(e)}")
+
+
+@router.get("/affiliate-data/debug")
+async def debug_affiliate_data(sheet_name: str = "アフィリ用データ"):
+    """アフィリエイトデータ取得のデバッグ情報"""
+    try:
+        if not sheets_service.is_authenticated():
+            return {
+                "authenticated": False,
+                "error": "Google Sheets API認証が必要です"
+            }
+        
+        # スプレッドシートの全シート情報を取得
+        try:
+            spreadsheet = sheets_service.service.spreadsheets().get(
+                spreadsheetId=sheets_service.spreadsheet_id
+            ).execute()
+            
+            sheet_info = []
+            for sheet in spreadsheet.get('sheets', []):
+                properties = sheet.get('properties', {})
+                sheet_info.append({
+                    'title': properties.get('title'),
+                    'sheet_id': properties.get('sheetId'),
+                    'row_count': properties.get('gridProperties', {}).get('rowCount'),
+                    'column_count': properties.get('gridProperties', {}).get('columnCount')
+                })
+        except Exception as e:
+            sheet_info = [{"error": str(e)}]
+        
+        # 生のシートデータを取得（最大100行）
+        raw_data = sheets_service.read_sheet(sheet_name, max_rows=100)
+        
+        debug_info = {
+            "authenticated": True,
+            "sheet_name": sheet_name,
+            "spreadsheet_id": sheets_service.spreadsheet_id,
+            "spreadsheet_info": sheet_info,
+            "raw_data_rows": len(raw_data) if raw_data else 0,
+            "raw_data_preview": raw_data[:5] if raw_data else [],
+            "headers": raw_data[0] if raw_data else [],
+            "sample_rows": raw_data[1:4] if len(raw_data) > 1 else [],
+            "last_rows": raw_data[-3:] if len(raw_data) > 3 else []
+        }
+        
+        # 処理済みデータも取得
+        try:
+            processed_data = sheets_service.get_affiliate_data(sheet_name)
+            debug_info["processed_count"] = len(processed_data) if processed_data else 0
+            debug_info["processed_preview"] = processed_data[:3] if processed_data else []
+            debug_info["processed_last"] = processed_data[-3:] if len(processed_data) > 3 else []
+        except Exception as e:
+            debug_info["processing_error"] = str(e)
+        
+        return debug_info
+        
+    except Exception as e:
+        return {
+            "authenticated": sheets_service.is_authenticated(),
+            "error": str(e),
+            "debug": True
+        }
+
+
+@router.get("/sheets-info")
+async def get_sheets_info():
+    """スプレッドシートの情報を取得"""
+    try:
+        if not sheets_service.is_authenticated():
+            return {
+                "authenticated": False,
+                "error": "Google Sheets API認証が必要です"
+            }
+        
+        spreadsheet = sheets_service.service.spreadsheets().get(
+            spreadsheetId=sheets_service.spreadsheet_id
+        ).execute()
+        
+        sheets_info = []
+        for sheet in spreadsheet.get('sheets', []):
+            properties = sheet.get('properties', {})
+            
+            # 各シートの実際のデータ数を確認
+            sheet_title = properties.get('title')
+            try:
+                sheet_data = sheets_service.read_sheet(sheet_title, max_rows=1000)
+                actual_rows = len(sheet_data) if sheet_data else 0
+                non_empty_rows = len([row for row in sheet_data if any(cell.strip() for cell in row if cell)]) if sheet_data else 0
+            except:
+                actual_rows = 0
+                non_empty_rows = 0
+            
+            sheets_info.append({
+                'title': sheet_title,
+                'sheet_id': properties.get('sheetId'),
+                'declared_row_count': properties.get('gridProperties', {}).get('rowCount'),
+                'declared_column_count': properties.get('gridProperties', {}).get('columnCount'),
+                'actual_data_rows': actual_rows,
+                'non_empty_rows': non_empty_rows
+            })
+        
+        return {
+            "spreadsheet_id": sheets_service.spreadsheet_id,
+            "spreadsheet_title": spreadsheet.get('properties', {}).get('title'),
+            "sheets": sheets_info
+        }
+        
+    except Exception as e:
+        return {
+            "error": str(e),
+            "authenticated": sheets_service.is_authenticated()
+        }
+
+
 async def update_scheduler():
     """スケジューラーを更新（バックグラウンドタスク）"""
     # TODO: 実際のスケジューラー更新ロジックを実装

@@ -49,7 +49,7 @@ class LLMService:
             LLMProvider.OPENAI: "gpt-4",
             LLMProvider.OLLAMA: "llama2",  # Ollamaデフォルトモデル
             LLMProvider.CLAUDE: "claude-3-sonnet-20240229",
-            LLMProvider.GEMINI: "gemini-pro"
+            LLMProvider.GEMINI: "gemini-1.5-flash"
         }
         
         # カスタムモデル設定
@@ -82,7 +82,7 @@ class LLMService:
             "gemini": {
                 "api_key": "",
                 "base_url": "",
-                "model": "gemini-pro"
+                "model": "gemini-1.5-flash"
             },
             "ollama": {
                 "api_key": "",
@@ -102,17 +102,41 @@ class LLMService:
             logger.error(f"設定ファイル保存エラー: {e}")
             return False
     
-    def update_provider_config(self, provider: str, config: dict) -> bool:
-        """プロバイダー設定を更新"""
+    def update_provider_config(self, provider: str, config: dict) -> tuple[bool, str]:
+        """プロバイダー設定を更新（バリデーション付き）"""
         try:
+            # APIキーが含まれている場合はバリデーションを実行
+            if 'api_key' in config:
+                api_key = config['api_key']
+                # 空文字列の場合はバリデーションをスキップ（削除用）
+                if api_key:
+                    valid, error_msg = self._validate_api_key(provider, api_key)
+                    if not valid:
+                        logger.warning(f"APIキーバリデーション失敗: {error_msg}")
+                        return False, error_msg
+                    else:
+                        logger.info(f"APIキーバリデーション成功: {provider}")
+            
             if provider not in self.config:
                 self.config[provider] = {}
             
+            old_config = self.config[provider].copy()
             self.config[provider].update(config)
-            return self.save_config()
+            
+            success = self.save_config()
+            
+            if success:
+                logger.info(f"設定保存成功: {provider}")
+                return True, "設定を保存しました"
+            else:
+                # 保存に失敗した場合は元の設定に戻す
+                self.config[provider] = old_config
+                logger.error(f"設定ファイル保存失敗: {provider}")
+                return False, "設定ファイルの保存に失敗しました"
+                
         except Exception as e:
             logger.error(f"プロバイダー設定更新エラー: {e}")
-            return False
+            return False, f"設定更新エラー: {str(e)}"
     
     def get_provider_config(self, provider: str) -> dict:
         """プロバイダー設定を取得"""
@@ -192,8 +216,9 @@ class LLMService:
         api_key = config.get('api_key')
         base_url = config.get('base_url')
         
-        if not api_key:
-            raise Exception("OpenAI API keyが設定されていません")
+        valid, error_msg = self._validate_api_key("openai", api_key)
+        if not valid:
+            raise Exception(error_msg)
         
         try:
             import openai
@@ -329,8 +354,9 @@ class LLMService:
         api_key = config.get('api_key')
         base_url = config.get('base_url', 'https://api.anthropic.com')
         
-        if not api_key:
-            raise Exception("Claude API keyが設定されていません")
+        valid, error_msg = self._validate_api_key("claude", api_key)
+        if not valid:
+            raise Exception(error_msg)
         
         try:
             headers = {
@@ -386,55 +412,112 @@ class LLMService:
         """Gemini APIでコンテンツ生成"""
         config = self.get_provider_config('gemini')
         api_key = config.get('api_key')
-        base_url = config.get('base_url', 'https://generativelanguage.googleapis.com')
+        base_url = config.get('base_url') or 'https://generativelanguage.googleapis.com'
         
         if not api_key:
             raise Exception("Gemini API keyが設定されていません")
         
+        # APIキーの形式をチェック
+        valid, error_msg = self._validate_api_key("gemini", api_key)
+        if not valid:
+            raise Exception(error_msg)
+        
         try:
-            # Geminiの場合、システムプロンプトをプロンプトに統合
-            full_prompt = prompt
-            if system_prompt:
-                full_prompt = f"{system_prompt}\n\n{prompt}"
+            logger.info(f"=== Gemini生成開始 ===")
+            logger.info(f"Model: {model}")
+            logger.info(f"Base URL: {base_url}")
+            logger.info(f"Max tokens: {max_tokens}, Temperature: {temperature}")
             
             headers = {
                 "Content-Type": "application/json"
             }
             
+            # プロンプトを統合（シンプルな形式を使用）
+            full_prompt = prompt
+            if system_prompt:
+                full_prompt = f"{system_prompt}\n\n{prompt}"
+            
+            # 接続テストで成功したシンプルなpayload
             payload = {
-                "contents": [{
-                    "parts": [{
-                        "text": full_prompt
-                    }]
-                }],
-                "generationConfig": {
-                    "temperature": temperature,
-                    "maxOutputTokens": max_tokens
-                }
+                "contents": [
+                    {
+                        "parts": [
+                            {"text": full_prompt}
+                        ]
+                    }
+                ]
             }
             
-            # APIキーをクエリパラメータに含める
-            url = f"{base_url}/v1beta/models/{model}:generateContent?key={api_key}"
+            # APIキーをクエリパラメータに含める（v1を使用）
+            url = f"{base_url}/v1/models/{model}:generateContent?key={api_key}"
             
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self.timeout)) as session:
+            logger.info(f"Gemini API URL: {url}")
+            logger.info(f"Payload: {json.dumps(payload, ensure_ascii=False, indent=2)}")
+            
+            logger.info(f"リクエスト送信中: {url.split('?')[0]}?key={api_key[:10]}...")
+            
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=60)) as session:
                 async with session.post(
                     url,
                     headers=headers,
                     json=payload
                 ) as response:
+                    logger.info(f"Gemini APIレスポンス: status={response.status}")
+                    
                     if response.status != 200:
                         error_text = await response.text()
-                        raise Exception(f"Gemini API エラー: {response.status} - {error_text}")
+                        logger.error(f"Gemini APIエラー詳細: {error_text}")
+                        
+                        # 詳細なエラー分析
+                        if response.status == 400:
+                            if "API_KEY_INVALID" in error_text:
+                                raise Exception("Gemini API キーが無効です。正しいAPIキーを設定してください。")
+                            elif "INVALID_ARGUMENT" in error_text:
+                                raise Exception(f"Gemini API リクエストが無効です: {error_text}")
+                            elif "model not found" in error_text.lower():
+                                raise Exception(f"指定されたモデル '{model}' が見つかりません。利用可能なモデルを確認してください。")
+                        elif response.status == 403:
+                            raise Exception("Gemini API アクセスが拒否されました。APIキーの権限を確認してください。")
+                        elif response.status == 429:
+                            raise Exception("Gemini API レート制限に達しました。しばらく待ってから再試行してください。")
+                        
+                        raise Exception(f"Gemini API エラー: HTTP {response.status} - {error_text}")
                     
                     result = await response.json()
+                    logger.info(f"Gemini生成結果: {result}")
                     
                     # レスポンスからコンテンツを抽出
                     content = ""
                     if "candidates" in result and len(result["candidates"]) > 0:
                         candidate = result["candidates"][0]
+                        
+                        # finishReasonをチェック
+                        finish_reason = candidate.get("finishReason")
+                        if finish_reason and finish_reason != "STOP":
+                            logger.warning(f"Gemini生成が完了していません: {finish_reason}")
+                            if finish_reason == "SAFETY":
+                                raise Exception("Gemini APIが安全性フィルターによりコンテンツをブロックしました。")
+                            elif finish_reason == "MAX_TOKENS":
+                                logger.warning("最大トークン数に達しました")
+                        
                         if "content" in candidate and "parts" in candidate["content"]:
                             parts = candidate["content"]["parts"]
                             content = "".join([part.get("text", "") for part in parts])
+                        
+                        if not content:
+                            logger.warning("Geminiから空のレスポンスが返されました")
+                            return {
+                                "success": False,
+                                "error": "Geminiから空のレスポンスが返されました",
+                                "content": None,
+                                "provider": "gemini",
+                                "model": model
+                            }
+                    else:
+                        logger.error("Gemini APIレスポンスにcandidatesが含まれていません")
+                        raise Exception("Gemini APIから予期しないレスポンス形式が返されました")
+                    
+                    logger.info(f"生成されたコンテンツ: '{content}' (長さ: {len(content)})")
                     
                     return {
                         "success": True,
@@ -444,7 +527,21 @@ class LLMService:
                         "usage": result.get("usageMetadata", {})
                     }
                     
+        except aiohttp.InvalidURL as url_error:
+            logger.error(f"=== Gemini URL エラー ===")
+            logger.error(f"URL エラー詳細: {str(url_error)}")
+            logger.error(f"使用したURL: {url}")
+            raise Exception(f"Gemini API URL エラー: 無効なURL形式")
+        except aiohttp.ClientError as client_error:
+            logger.error(f"=== Gemini クライアントエラー ===")
+            logger.error(f"クライアントエラー詳細: {str(client_error)}")
+            raise Exception(f"Gemini API 接続エラー: {str(client_error)}")
         except Exception as e:
+            logger.error(f"=== Gemini生成エラー ===")
+            logger.error(f"エラー詳細: {str(e)}")
+            logger.error(f"エラータイプ: {type(e).__name__}")
+            import traceback
+            logger.error(f"スタックトレース: {traceback.format_exc()}")
             raise Exception(f"Gemini API エラー: {e}")
     
     async def generate_social_media_post(
@@ -455,7 +552,8 @@ class LLMService:
         tone: str = "friendly",
         include_hashtags: bool = True,
         max_length: int = 280,
-        provider: Optional[LLMProvider] = None
+        provider: Optional[LLMProvider] = None,
+        model: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         商品データからソーシャルメディア投稿を生成
@@ -547,6 +645,7 @@ class LLMService:
                 prompt=prompt,
                 system_prompt=system_prompt,
                 provider=provider,
+                model=model,
                 max_tokens=max_length // 2,  # 文字数制限を考慮
                 temperature=0.8  # 創造性を高める
             )
@@ -638,6 +737,8 @@ class LLMService:
         try:
             if provider == LLMProvider.OLLAMA:
                 return await self._test_ollama_connection()
+            elif provider == LLMProvider.GEMINI:
+                return await self._test_gemini_connection()
             else:
                 # 他のプロバイダーの場合は通常のテスト
                 test_prompt = "Hello, this is a test message. Please respond with 'Connection successful!'"
@@ -747,6 +848,140 @@ class LLMService:
                 "error": f"生成テストエラー: {str(e)}"
             }
     
+    def _validate_api_key(self, provider: str, api_key: str) -> tuple[bool, str]:
+        """APIキーの形式をチェック"""
+        if not api_key:
+            return False, f"{provider} API keyが設定されていません"
+        
+        if provider == "gemini":
+            # Gemini APIキーの形式: "AIza" で始まり、39文字の英数字
+            if not api_key.startswith("AIza"):
+                return False, f"無効なGemini APIキー形式です。'AIza'で始まる必要があります (現在: {api_key[:10]}...)"
+            if len(api_key) != 39:
+                return False, f"無効なGemini APIキー長です。39文字である必要があります (現在: {len(api_key)}文字)"
+            if not api_key[4:].replace("-", "").replace("_", "").isalnum():
+                return False, f"無効なGemini APIキー文字です。英数字のみ許可されています (現在: {api_key[:10]}...)"
+        elif provider == "openai":
+            # OpenAI APIキーの形式: "sk-" で始まる
+            if not (api_key.startswith("sk-") and len(api_key) > 20):
+                return False, f"無効なOpenAI APIキー形式です。正しい形式: sk-XXXXXXXXXXXXXXXX (現在: {api_key[:10]}...)"
+        elif provider == "claude":
+            # Claude APIキーの形式: "sk-ant-" で始まる
+            if not (api_key.startswith("sk-ant-") and len(api_key) > 20):
+                return False, f"無効なClaude APIキー形式です。正しい形式: sk-ant-XXXXXXXXXXXXXXXX (現在: {api_key[:10]}...)"
+        
+        return True, ""
+    
+    def _validate_gemini_api_key(self, api_key: str) -> bool:
+        """Gemini APIキーの形式をチェック（後方互換性）"""
+        valid, _ = self._validate_api_key("gemini", api_key)
+        return valid
+    
+    async def _test_gemini_connection(self) -> Dict[str, Any]:
+        """Gemini専用接続テスト（シンプル版）"""
+        logger.info("=== Gemini接続テスト開始 ===")
+        
+        config = self.get_provider_config('gemini')
+        api_key = config.get('api_key', '')
+        
+        if not api_key:
+            return {
+                "provider": "gemini",
+                "connected": False,
+                "response": None,
+                "error": "Gemini API keyが設定されていません"
+            }
+        
+        # APIキー形式チェック
+        valid, error_msg = self._validate_api_key("gemini", api_key)
+        if not valid:
+            return {
+                "provider": "gemini",
+                "connected": False,
+                "response": None,
+                "error": error_msg
+            }
+        
+        # 動作確認済みの設定を使用
+        model = "gemini-1.5-flash"
+        url = f"https://generativelanguage.googleapis.com/v1/models/{model}:generateContent?key={api_key}"
+        
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {"text": "Hi"}
+                    ]
+                }
+            ]
+        }
+        
+        try:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as session:
+                async with session.post(
+                    url,
+                    headers={"Content-Type": "application/json"},
+                    json=payload
+                ) as response:
+                    response_text = await response.text()
+                    
+                    if response.status == 200:
+                        try:
+                            result = json.loads(response_text)
+                            
+                            content = ""
+                            if "candidates" in result and len(result["candidates"]) > 0:
+                                candidate = result["candidates"][0]
+                                if "content" in candidate and "parts" in candidate["content"]:
+                                    parts = candidate["content"]["parts"]
+                                    content = "".join([part.get("text", "") for part in parts])
+                            
+                            return {
+                                "provider": "gemini",
+                                "connected": True,
+                                "response": f"接続成功 (v1/{model}): {content}",
+                                "error": None,
+                                "working_model": model,
+                                "api_version": "v1"
+                            }
+                        except json.JSONDecodeError as json_error:
+                            return {
+                                "provider": "gemini",
+                                "connected": False,
+                                "response": None,
+                                "error": f"JSON解析エラー: {json_error}"
+                            }
+                    else:
+                        if response.status == 400 and ("API_KEY_INVALID" in response_text or "Invalid API key" in response_text):
+                            return {
+                                "provider": "gemini",
+                                "connected": False,
+                                "response": None,
+                                "error": f"Gemini API キーが無効です。正しいAPIキーを設定してください。"
+                            }
+                        elif response.status == 403:
+                            return {
+                                "provider": "gemini",
+                                "connected": False,
+                                "response": None,
+                                "error": "Gemini API アクセスが拒否されました。APIキーの権限を確認してください。"
+                            }
+                        else:
+                            return {
+                                "provider": "gemini",
+                                "connected": False,
+                                "response": None,
+                                "error": f"API エラー: HTTP {response.status} - {response_text[:200]}"
+                            }
+                    
+        except Exception as e:
+            return {
+                "provider": "gemini",
+                "connected": False,
+                "response": None,
+                "error": f"接続エラー: {str(e)}"
+            }
+    
     def get_available_providers(self) -> List[Dict[str, Any]]:
         """利用可能なプロバイダー一覧を取得"""
         providers = []
@@ -849,7 +1084,17 @@ class LLMService:
         elif provider == 'claude':
             base_models = ["claude-3-5-sonnet-20241022", "claude-3-sonnet-20240229", "claude-3-opus-20240229", "claude-3-haiku-20240307"]
         elif provider == 'gemini':
-            base_models = ["gemini-pro", "gemini-pro-vision", "gemini-1.5-pro", "gemini-1.5-flash"]
+            base_models = [
+                "gemini-2.0-flash-exp", 
+                "gemini-exp-1206",
+                "gemini-2.0-flash-thinking-exp",
+                "gemini-1.5-pro-002", 
+                "gemini-1.5-flash-002", 
+                "gemini-1.5-flash-8b",
+                "gemini-1.5-pro", 
+                "gemini-1.5-flash",
+                "gemini-pro"
+            ]
         elif provider == 'ollama':
             base_models = ["llama2", "llama3", "mistral", "codellama", "llama2:13b", "gemma"]
         
