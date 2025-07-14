@@ -1,0 +1,28 @@
+{
+  "openai": {
+    "api_key": "",
+    "base_url": "",
+    "model": "gpt-4"
+  },
+  "claude": {
+    "api_key": "",
+    "base_url": "",
+    "model": "claude-3-sonnet-20240229"
+  },
+  "gemini": {
+    "api_key": "",
+    "base_url": "",
+    "model": "gemini-2.0-flash-exp"
+  },
+  "ollama": {
+    "api_key": "",
+    "base_url": "http://localhost:11434",
+    "model": "huihui_ai/phi4-abliterated:latest"
+  },
+  "custom_models": {
+    "ollama": [
+      "huihui_ai/phi4-abliterated:latest",
+      "gemma3:12b"
+    ]
+  }
+}
