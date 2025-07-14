@@ -12,15 +12,36 @@ Python Auto Tweeterは、個人でのTwitter自動投稿を効率化するため
 
 ## 主な機能
 
-- 🐦 **Twitter OAuth認証**: セキュアなAPI認証
-- ⏰ **自動投稿・スケジューリング**: 予約投稿機能
-- 🔗 **アフィリエイトリンク変換**: リンクの自動変換
-- 📊 **投稿分析・メトリクス収集**: 投稿データの分析
-- 🖥️ **Web UI**: 直感的なWebインターフェース
-- 📱 **レスポンシブデザイン**: モバイル対応
-- 🖼️ **画像アップロード**: 投稿に画像を添付
-- 🧵 **スレッド投稿**: 連続投稿の管理
-- 📈 **Google Sheets連携**: データ管理の効率化
+### 🤖 AI & LLM統合
+- **マルチLLM対応**: Ollama, OpenAI GPT, Claude, Gemini
+- **自動投稿生成**: アフィリエイトデータからAI投稿生成
+- **バッチ処理**: 複数商品の並列投稿生成
+- **スケジュール自動生成**: AI による投稿スケジュールの最適化
+
+### 📊 高度な分析機能
+- **投稿パフォーマンス分析**: エンゲージメント率、成功率の詳細分析
+- **投稿時間最適化**: 時間帯別パフォーマンス分析と最適時間提案
+- **コンテンツ効果分析**: ハッシュタグ、メディア、文章長の効果測定
+- **トレンド分析**: ハッシュタグトレンドと投稿推移の追跡
+- **AI推奨事項**: データに基づく自動改善提案
+- **ボット比較**: 複数ボット間のパフォーマンス比較
+
+### 🔄 アフィリエイト連携
+- **マルチフォーマット対応**: FANZA, マンガ, 汎用データの自動判別
+- **データ正規化**: 異なるソースのデータを統一処理
+- **柔軟検索**: 大文字小文字区別なし、部分一致対応
+
+### 🐦 Twitter 機能
+- **OAuth認証**: セキュアなAPI認証
+- **自動投稿・スケジューリング**: 予約投稿機能
+- **画像投稿**: 複数画像の同時投稿
+- **スレッド投稿**: 連続投稿の管理
+
+### 🖥️ ユーザーインターフェース
+- **インタラクティブダッシュボード**: Chart.js による可視化
+- **レスポンシブデザイン**: Tailwind CSS + Alpine.js
+- **リアルタイム更新**: 分析データの自動更新
+- **Google Sheets連携**: データ管理の効率化
 
 ## 技術スタック
 
@@ -30,15 +51,24 @@ Python Auto Tweeterは、個人でのTwitter自動投稿を効率化するため
 - **SQLite**: 軽量データベース
 - **APScheduler**: バックグラウンドタスク管理
 - **Alembic**: データベースマイグレーション
+- **Pydantic**: データ検証とAPI仕様
+
+### AI & LLM
+- **Ollama**: ローカルLLM実行環境
+- **OpenAI API**: GPT-4, GPT-3.5-turbo
+- **Anthropic Claude**: Claude-3 Sonnet/Haiku
+- **Google Gemini**: Gemini-1.5-Flash/Pro
 
 ### フロントエンド
-- **HTML5/CSS3/JavaScript**: レスポンシブWebUI
-- **Bootstrap**: UIフレームワーク
+- **Alpine.js**: リアクティブなJavaScriptフレームワーク
+- **Chart.js**: インタラクティブなグラフライブラリ
+- **Tailwind CSS**: ユーティリティファーストCSSフレームワーク
+- **HTML5/CSS3**: モダンなWebUI
 
-### その他
-- **Click**: CLI インターフェース
-- **Pydantic**: データ検証
-- **python-multipart**: ファイルアップロード
+### 外部連携
+- **Twitter API v2**: 投稿・メトリクス取得
+- **Google Sheets API**: データソース連携
+- **Google Drive API**: ファイル管理
 
 ## インストール
 
@@ -180,17 +210,52 @@ SECRET_KEY=your_secret_key
 
 ## API エンドポイント
 
-### 主要なエンドポイント
+### 🏠 コア機能
+- `GET /` - メインダッシュボード
+- `GET /analytics` - 分析ダッシュボード
+- `GET /docs` - API ドキュメント（OpenAPI）
+- `GET /health` - ヘルスチェック
 
-- `GET /` - ダッシュボード
-- `GET /docs` - API ドキュメント
-- `POST /api/twitter/tweet` - ツイート投稿
-- `GET /api/bots` - ボット一覧
+### 🤖 ボット管理
+- `GET /api/bots` - ボット一覧取得
 - `POST /api/bots` - ボット作成
-- `GET /api/posts` - 投稿履歴
+- `PUT /api/bots/{bot_id}` - ボット更新
+- `DELETE /api/bots/{bot_id}` - ボット削除
+
+### 🐦 投稿管理
+- `GET /api/posts` - 投稿履歴取得
+- `POST /api/twitter/tweet` - ツイート投稿
+- `POST /api/scheduled-posts` - 予約投稿作成
+- `GET /api/scheduled-posts` - 予約投稿一覧
+
+### 🧠 AI & LLM
+- `GET /api/llm/providers` - 利用可能プロバイダー
+- `POST /api/llm/generate` - 汎用コンテンツ生成
+- `POST /api/llm/generate-social-post` - SNS投稿生成
+- `POST /api/llm/generate-from-affiliate-data/{product_id}` - アフィリエイト投稿生成
+- `GET /api/llm/affiliate-products` - 商品一覧取得
+- `POST /api/llm/auto-schedule-posts` - 自動スケジュール生成
+- `POST /api/llm/batch-generate-posts` - バッチ投稿生成
+
+### 📊 分析機能
+- `GET /api/analytics/overview` - 分析概要
+- `GET /api/analytics/posting-time` - 投稿時間分析
+- `GET /api/analytics/content-performance` - コンテンツ分析
+- `GET /api/analytics/trends` - トレンド分析
+- `GET /api/analytics/recommendations/{bot_id}` - AI推奨事項
+- `GET /api/analytics/dashboard/{bot_id}` - ボットダッシュボード
+- `GET /api/analytics/comparison` - ボット比較分析
+- `GET /api/analytics/export/{bot_id}` - データエクスポート
+
+### 📈 Google Sheets連携
+- `GET /api/sheets/status` - 認証状態確認
+- `POST /api/sheets/authenticate` - Google認証
+- `GET /api/sheets/data` - スプレッドシートデータ取得
+
+### 🖼️ その他
 - `POST /api/upload/image` - 画像アップロード
 
-詳細なAPI仕様は `/docs` で確認できます。
+詳細なAPI仕様は http://localhost:8000/docs で確認できます。
 
 ## ライセンス
 
